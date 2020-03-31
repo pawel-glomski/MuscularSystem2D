@@ -1,0 +1,1 @@
+Przy pierwszym uruchomieniu: Uruchomić makeEnv.sh
