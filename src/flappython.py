@@ -7,7 +7,7 @@ from pygame.locals import *
 from nn import NeuralNetwork
 
 
-POPULATION = 100
+POPULATION = 500
 
 # Start pygame
 pygame.init()
@@ -68,7 +68,7 @@ class Bird:
         self.pos = newPos
 
         if otherBird == None:
-            self.brain = NeuralNetwork(3, 4, 1)
+            self.brain = NeuralNetwork(3, 3, 1)
         else:
             self.brain = NeuralNetwork(0, 0, 0, otherBird.brain)
 
@@ -108,7 +108,7 @@ class Bird:
         pipe = findClosestPipe()
         actualy = self.pos[1] / WINDOWY
         xtopipe = (pipe.pos - self.pos[0]) / WINDOWX
-        pipeheight = pipe.height / WINDOWY
+        pipeheight = (pipe.height - self.pos[1]) / WINDOWY
         inputs = [actualy, xtopipe, pipeheight]
         decision = self.brain.predict(inputs)[0]
         # print(decision[0])
@@ -151,7 +151,13 @@ def poolSelection(birds):
 
     index -= 1
 
-    return birds[index]
+    choosen = None
+    max = 0
+    for bird in birds:
+        if bird.fitness > max:
+            choosen = bird
+
+    return choosen  # birds[index]
 
 
 def newGeneration(savedBirds, birds):
@@ -243,7 +249,7 @@ while True:
     if len(birds) == 0:
         resetGame()
 
-    # if (generation < 200):
+    # if (generation < 500):
     #    continue
 
     pygame.draw.rect(windowObj, groundColor, (0, groundLevel,
