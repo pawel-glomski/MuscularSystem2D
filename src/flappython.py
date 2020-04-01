@@ -68,7 +68,7 @@ class Bird:
         self.pos = newPos
 
         if otherBird == None:
-            self.brain = NeuralNetwork(3, 3, 1)
+            self.brain = NeuralNetwork(2, 3, 1)
         else:
             self.brain = NeuralNetwork(0, 0, 0, otherBird.brain)
 
@@ -102,14 +102,14 @@ class Bird:
         return False
 
     def up(self):
-        self.velocity = -20
+        self.velocity = -10
 
     def decide(self):
         pipe = findClosestPipe()
         actualy = self.pos[1] / WINDOWY
         xtopipe = (pipe.pos - self.pos[0]) / WINDOWX
         pipeheight = (pipe.height - self.pos[1]) / WINDOWY
-        inputs = [actualy, xtopipe, pipeheight]
+        inputs = [xtopipe, pipeheight]
         decision = self.brain.predict(inputs)[0]
         # print(decision[0])
         if decision[0] > 0.5:
