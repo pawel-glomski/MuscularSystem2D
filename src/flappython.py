@@ -129,7 +129,7 @@ def removeBird(bird):
 def normalizeFitness(birds):
 
     for bird in birds:
-        bird.score = pow(bird.score, 2)  # 2
+        bird.score = pow(bird.score, 2)
 
     sum = 0
     for bird in birds:
@@ -213,6 +213,9 @@ while True:
         if event.type == QUIT:
             pygame.quit()
             sys.exit()
+        elif event.type == KEYDOWN:
+            if event.key == pygame.K_s:
+                birds[0].brain.saveWeighs()
 
     for bird in birds:
         bird.decide()
@@ -240,7 +243,7 @@ while True:
     if len(birds) == 0:
         resetGame()
 
-    #draw
+    # draw
     pygame.draw.rect(windowObj, groundColor, (0, groundLevel,
                                               windowObj.get_width(), windowObj.get_height()))
 

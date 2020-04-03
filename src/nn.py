@@ -42,29 +42,27 @@ class NeuralNetwork:
 
         for weigh in self.weighs_ih:
             if np.random.rand() < chance:
-                #randomNumber = 2 * np.random.rand() - 1
                 randomNumber = np.random.normal(0, 0.1)
                 weigh += randomNumber
 
         for weigh in self.weighs_ho:
             if np.random.rand() < chance:
-                #randomNumber = 2 * np.random.rand() - 1
                 randomNumber = np.random.normal(0, 0.1)
                 weigh += randomNumber
 
         for bias in self.bias_h:
             if np.random.rand() < chance:
-                #randomNumber = 2 * np.random.rand() - 1
                 randomNumber = np.random.normal(0, 0.1)
                 bias += randomNumber
 
         for bias in self.bias_o:
             if np.random.rand() < chance:
-                #randomNumber = 2 * np.random.rand() - 1
                 randomNumber = np.random.normal(0, 0.1)
                 bias += randomNumber
 
     def saveWeighs(self):
 
-        savetxt('weighs_ih.csv', self.weighs_ih, delimiter=',')
-        savetxt('weighs_ho.csv', self.weighs_ho, delimiter=',')
+        np.savetxt('weighs_ih.csv', self.weighs_ih, delimiter=',')
+        np.savetxt('weighs_ho.csv', self.weighs_ho, delimiter=',')
+        np.savetxt('bias_h.csv', self.bias_h, delimiter=',')
+        np.savetxt('bias_o.csv', self.bias_o, delimiter=',')
