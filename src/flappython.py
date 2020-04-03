@@ -68,9 +68,9 @@ class Bird:
         self.pos = newPos
 
         if otherBird == None:
-            self.brain = NeuralNetwork(2, 3, 1)
+            self.brain = NeuralNetwork([2, 3, 1])
         else:
-            self.brain = NeuralNetwork(0, 0, 0, otherBird.brain)
+            self.brain = NeuralNetwork([0], otherBird.brain)
 
     # Handles drawing the bird to the screen
 
@@ -216,6 +216,8 @@ while True:
         elif event.type == KEYDOWN:
             if event.key == pygame.K_s:
                 birds[0].brain.saveWeighs()
+            elif event.key == pygame.K_l:
+                None  # load weighs
 
     for bird in birds:
         bird.decide()
