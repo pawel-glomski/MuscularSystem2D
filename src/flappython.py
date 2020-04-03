@@ -111,7 +111,6 @@ class Bird:
         pipeheight = (pipe.height - self.pos[1]) / WINDOWY
         inputs = [xtopipe, pipeheight]
         decision = self.brain.predict(inputs)[0]
-        # print(decision[0])
         if decision[0] > 0.5:
             self.up()
 
@@ -142,22 +141,13 @@ def normalizeFitness(birds):
 
 def poolSelection(birds):
 
-    index = 0
-    r = np.random.rand()
-
-    while (r > 0):
-        r -= birds[index].fitness
-        index += 1
-
-    index -= 1
-
     choosen = None
     max = 0
     for bird in birds:
         if bird.fitness > max:
             choosen = bird
 
-    return choosen  # birds[index]
+    return choosen
 
 
 def newGeneration(savedBirds, birds):
@@ -178,12 +168,17 @@ def resetGame():
     global generation
     global birds
     global savedBirds
+    global pipesBehind
     del pipes[:]
     pipes = [Pipes()]
     birds = []
-    newGeneration(savedBirds, birds)
+    if pipesBehind != 0:
+        newGeneration(savedBirds, birds)
+    else:
+        initBirds()
     savedBirds = []
     generation += 1
+    pipesBehind = 0
     print(generation)
 
 
@@ -206,6 +201,7 @@ initBirds()
 pipes = [Pipes()]
 gravity = 2
 generation = 1
+pipesBehind = 0
 
 # Main game loop
 while True:
@@ -217,13 +213,7 @@ while True:
         if event.type == QUIT:
             pygame.quit()
             sys.exit()
-        # elif event.type == KEYDOWN:
-        #    if (event.key == K_ESCAPE):
-        #        pause()
-        #    elif (event.key == K_SPACE):
-        #        birds[0].up()
 
-    # print(len(birds))
     for bird in birds:
         bird.decide()
         bird.velocity += gravity
@@ -244,14 +234,13 @@ while True:
                 removeBird(bird)
 
         if (not pipe.move(-10)):
+            pipesBehind += 1
             del pipe
 
     if len(birds) == 0:
         resetGame()
 
-    # if (generation < 500):
-    #    continue
-
+    #draw
     pygame.draw.rect(windowObj, groundColor, (0, groundLevel,
                                               windowObj.get_width(), windowObj.get_height()))
 
