@@ -1,11 +1,14 @@
 import pygame
 from pygame.locals import (QUIT, KEYDOWN, K_ESCAPE)
+from pygame import Vector2 as Vec2
 
 import numpy as np
 import random
 
 import Box2D
 from Box2D import *
+
+from actor import *
 
 PPM = 35.0  # pixels per meter
 TARGET_FPS = 60
@@ -29,42 +32,14 @@ def my_draw_edge(edge, body, fixture, screen):
     pygame.draw.line(screen, COLORS[body.type], vertices[0], vertices[1])
 
 
-def CreateBone(world, pos=(0, 5), angle=-b2_pi*0.5, scale=(1, 1), anchor0=-0.95, anchor1=0.95):
-    size = (1*scale[0], 0.2*scale[1])
-    bone = world.CreateDynamicBody(position=pos,
-                                   angle=angle,
-                                   allowSleep=False,
-                                   fixtures=b2FixtureDef(density=1.0,
-                                                         friction=0.6,
-                                                         shape=b2PolygonShape(box=size),
-                                                         categoryBits=0x0004, maskBits=0x0002))
-    bone.ms_joints = []
-    bone.ms_anchor = [(anchor0 * size[0], 0), (anchor1 * size[0], 0)]
-    return bone
-
-
-def ConnectBones(world, mainBone, otherBone, anchorMain=1, anchorOther=0, angleLow=-b2_pi*0.25, angleHigh=b2_pi*0.25, maxTorque=10):
-    joint = world.CreateRevoluteJoint(bodyA=mainBone,
-                                      bodyB=otherBone,
-                                      localAnchorA=mainBone.ms_anchor[anchorMain],  # przestrzeń lokalna
-                                      localAnchorB=otherBone.ms_anchor[anchorOther],
-                                      lowerAngle=angleLow,  # względem ciała A
-                                      upperAngle=angleHigh,
-                                      enableLimit=True,
-                                      maxMotorTorque=maxTorque,
-                                      motorSpeed=0.0,  # prędkość kątowa
-                                      enableMotor=False)
-    mainBone.ms_joints.append(joint)
-    return joint
-
-
 def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), 0, 32)
-    pygame.display.set_caption('Simple pygame example')
+    pygame.display.set_caption('Muscular System 2D')
     clock = pygame.time.Clock()
 
+    b2Body.ms_joints = []
     b2World.CreateBone = CreateBone
-    b2World.ConnectBones = ConnectBones
+    b2World.CreateActor = Actor.CreateActor
     world = b2World(gravity=(0, -10), doSleep=True)
 
     ground_body = world.CreateStaticBody(
@@ -72,65 +47,29 @@ def main():
                               categoryBits=0x0002, maskBits=0x0004),
         position=(0, 0)
     )
-
-    torso = world.CreateBone(scale=(1.4, 1.6))
-    thigh1 = world.CreateBone(pos=(0, 4))
-    thigh2 = world.CreateBone(pos=(0, 4))
-    crus1 = world.CreateBone(pos=(0, 3), scale=(0.8, 0.8))
-    crus2 = world.CreateBone(pos=(0, 3), scale=(0.8, 0.8))
-    foot1 = world.CreateBone(pos=(0, 2), scale=(0.4, 0.5), angle=0)
-    foot2 = world.CreateBone(pos=(0, 2), scale=(0.4, 0.5), angle=0)
-
-    world.ConnectBones(torso, thigh1, angleLow=-b2_pi*0.5, angleHigh=b2_pi*0.5)
-    world.ConnectBones(torso, thigh2, angleLow=-b2_pi*0.5, angleHigh=b2_pi*0.5)
-    world.ConnectBones(thigh1, crus1, angleLow=-b2_pi*0.9, angleHigh=0)
-    world.ConnectBones(thigh2, crus2, angleLow=-b2_pi*0.9, angleHigh=0)
-    world.ConnectBones(crus1, foot1)
-    world.ConnectBones(crus2, foot2)
-
-    # world.ConnectBones(world.CreateBone(), world.CreateBone(angle=b2_pi*0.5), 1, 1)
-    # world.ConnectBones(world.CreateBone(), world.CreateBone(angle=b2_pi*0.5), 1, 1)
-
-    # bone1 = world.CreateDynamicBody(position=(-1.5, 1), angle=0, allowSleep=False,
-    #                                 fixtures=b2FixtureDef(density=1.0, friction=0.6,
-    #                                                       shape=b2PolygonShape(box=(1.2, 0.2))))
-    # bone2 = world.CreateDynamicBody(position=(1.5, 1), angle=0, allowSleep=False,
-    #                                 fixtures=b2FixtureDef(density=1.0, friction=0.6,
-    #                                                       shape=b2PolygonShape(box=(1.2, 0.2))))
-    # print(type(bone1))
-    # joint = world.CreateRevoluteJoint(bodyA=bone1,
-    #                                   bodyB=bone2,
-    #                                   localAnchorA=(1.2, 0.0),  # przestrzeń lokalna
-    #                                   localAnchorB=(-1.2, 0.0),
-    #                                   lowerAngle=-0.25 * b2_pi,  # względem ciała A
-    #                                   upperAngle=0.25 * b2_pi,
-    #                                   enableLimit=True,
-    #                                   maxMotorTorque=500.0,
-    #                                   motorSpeed=0.0,  # prędkość kątowa
-    #                                   enableMotor=True)
+    actor = world.CreateActor()
 
     b2PolygonShape.draw = my_draw_polygon
     b2EdgeShape.draw = my_draw_edge
     time = 0
     running = True
     while running:
-
         for event in pygame.event.get():
             if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
                 running = False
+        i = 1
+        for bone in actor.bones.values():
+            for joint in bone.ms_joints:
+                joint.motorSpeed = i*np.sin(time)
+                i *= -1
 
+        world.Step(TIME_STEP, 10, 10)
+        time += TIME_STEP
+        actor.getInputArray()
         screen.fill((0, 0, 0, 0))
         for body in world.bodies:
             for fixture in body.fixtures:
                 fixture.shape.draw(body, fixture, screen)
-
-        time += TIME_STEP
-        if time >= 0.2:
-            # joint.motorSpeed = (random.random() - 0.5) * 10
-            time = 0
-        world.Step(TIME_STEP, 10, 10)
-
-        # Flip the screen and try to keep at the target FPS
         pygame.display.flip()
         clock.tick(TARGET_FPS)
         # print(joint.motorSpeed)
