@@ -18,7 +18,7 @@ class Actor:
         self.addBone(world, 'crus1',  'thigh1', angleLow=-b2_pi*0.9,    angleHigh=0,            size=(0.35, 0.1), color=(155, 155, 155, 255))
         self.addBone(world, 'foot1',  'crus1',  angleLow=0,             angleHigh=b2_pi*0.65,   size=(0.2, 0.05), color=(155, 155, 155, 255))
 
-        self.addBone(world, 'thigh2', 'torso',  angleLow=-b2_pi*0.25, angleHigh=b2_pi*0.5,    size=(0.4, 0.15))
+        self.addBone(world, 'thigh2', 'torso',  angleLow=-b2_pi*0.25, angleHigh=b2_pi*0.75,    size=(0.4, 0.15))
         self.addBone(world, 'crus2',  'thigh2', angleLow=-b2_pi*0.9,  angleHigh=0,            size=(0.35, 0.1))
         self.addBone(world, 'foot2',  'crus2',  angleLow=0,           angleHigh=b2_pi*0.65,   size=(0.2, 0.05))
 
@@ -26,6 +26,8 @@ class Actor:
 
         self.reward = 0
         self.prevPos = 0
+        self.active = True
+        self.timeAlive = 0
 
     def getInputArray(self):
         inputs = []
@@ -54,7 +56,7 @@ class Actor:
             bone.draw(screen, bone.color)
         bonesList[0].draw(screen)
 
-    def addBone(self, world, name, parentName='', size=(1, 0.2), angle=0, pos=(0, 2), anchor0=-0.95, anchor1=0.95, parentAnchor=1, thisAnchor=0, angleLow=0, angleHigh=0, maxTorque=400, color=(255, 255, 255, 255)):
+    def addBone(self, world, name, parentName='', size=(1, 0.2), angle=0, pos=(0, 1.5), anchor0=-0.95, anchor1=0.95, parentAnchor=1, thisAnchor=0, angleLow=0, angleHigh=0, maxTorque=400, color=(255, 255, 255, 255)):
         size = (size[0] / 2, size[1] / 2)
         parent = None if parentName == '' else self.bones[parentName]
         angle = angle if parent is None else parent.angle
@@ -91,13 +93,22 @@ class Actor:
     def getRootPos(self):
         return self.bones['torso'].position + Vec2(self.bones['torso'].ms_anchor[1]).rotate(self.bones['torso'].angle * RadToDeg)
 
+    def deactivate(self):
+        self.active = False
+        for bone in self.bones.values():
+            bone.active = False
+
     def reset(self, mutationRate, mutationScale, model=None):
         self.reward = 0
+        self.prevPos = 0
+        self.timeAlive = 0
+        self.active = True
         for name, bone in self.bones.items():
             bone.position = StartTransf[name][0]
             bone.angle = StartTransf[name][1]
             bone.linearVelocity = b2Vec2(0, 0)
             bone.angularVelocity = 0
+            bone.active = True
         for joint in self.joints:
             joint.motorSpeed = 0
 

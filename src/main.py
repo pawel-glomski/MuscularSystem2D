@@ -53,7 +53,7 @@ def main():
                 if event.key == pygame.K_SPACE:
                     display = (display + 1) % 3
                 if pygame.K_1 <= event.key <= pygame.K_9:
-                    env.genTime = event.key - pygame.K_1 + 2
+                    env.genTime = (event.key - pygame.K_1 + 1) * 2
                     print("Gen time = ", env.genTime)
 
         env.step(TIME_STEP)
@@ -72,12 +72,13 @@ def main():
                     mass += bone.mass
             else:
                 for actor in env.actors:
-                    actor.draw(screen)
+                    if actor.active:
+                        actor.draw(screen)
             pygame.display.flip()
 
         if clock.get_time() != 0 and display != 1:
-            pygame.display.set_caption('Muscular System 2D %.2f' % (1 / (clock.get_time()/1000)))
-        clock.tick(200)
+            pygame.display.set_caption('Muscular System 2D %.2f' % clock.get_fps())
+        clock.tick(9999)
 
     pygame.quit()
     print('Done!')

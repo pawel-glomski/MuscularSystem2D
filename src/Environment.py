@@ -25,39 +25,52 @@ class Environment:
             position=(0, 0)
         )
 
-        self.actors = [Actor(self.world) for i in range(0, 50)]
+        self.actors = [Actor(self.world) for i in range(0, 100)]
         self.time = 0
-        self.ignoreFirstTicks = True
         self.gen = 0
-        self.genTime = 2
+        self.genTime = 18
+        self.tick = 0
 
     def step(self, timestep):
         self.time += timestep
+        if self.tick == 0:
+            for actor in self.actors:
+                if actor.reward < -20:
+                    actor.deactivate()
+                    continue
+                actor.applyOutputArray(actor.model.predict(actor.getInputArray()))
+        self.world.Step(timestep, 6, 4)
 
         for actor in self.actors:
-            actor.applyOutputArray(actor.model.predict(actor.getInputArray()))
-        self.world.Step(timestep, 10, 10)
-
-        if self.time > 0.08 and self.ignoreFirstTicks:
-            self.ignoreFirstTicks = False
-
-        if not self.ignoreFirstTicks:
-            for actor in self.actors:
+            if actor.active:
                 actorPos = actor.getRootPos()
-                actor.reward += 1*(actorPos.x - actor.prevPos) - abs(actor.bones['torso'].angle + b2_pi*0.5) * 0.1 + min(0, actorPos.y - MinHeight)
+                actor.reward += 10*(actorPos.x - actor.prevPos) - \
+                    abs(actor.bones['torso'].angle + b2_pi*0.5) * 0.1 - 0.5 * max(0, MinHeight - actorPos.y)
                 actor.prevPos = actorPos.x
+                actor.timeAlive += timestep
             #     print(actor.reward)
-            # print()
+        # print()
 
-        if self.time >= self.genTime:
-            self.actors.sort(key=lambda act: act.reward, reverse=True)
-            self.actors[0].reset(0, 0)
-            for actor in self.actors[5:]:
-                actor.reset(0.5, 1, self.actors[int(np.random.uniform(0, 5))].model)
-            for actor in self.actors[1:5]:
-                actor.reset(0.5, 2)
+        self.tick = (self.tick + 1) % 2
+
+        resetNow = True
+        for actor in self.actors:
+            if actor.active:
+                resetNow = False
+
+        if self.time >= self.genTime or resetNow:
+            self.actors.sort(key=lambda act: act.reward + act.timeAlive, reverse=True)
+            if self.actors[0].reward <= -10 and self.actors[0].timeAlive < 1.0:
+                for actor in self.actors:
+                    actor.reset(0.9, 1)
+            else:
+                for actor in self.actors[5:]:
+                    actor.reset(0.9, 0.5, self.actors[int(np.random.uniform(0, 5))].model)
+                for actor in self.actors[1:5]:
+                    actor.reset(0.9, 0.1)
+                self.actors[0].reset(0, 0)
 
             self.gen += 1
             print("!!!!!!!!!!!!!!!!!!!!! ", self.gen,  " !!!!!!!!!!!!!!!!!!!!!")
             self.time = 0
-            self.ignoreFirstTicks = True
+            self.tick = 0
