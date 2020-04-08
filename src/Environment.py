@@ -3,7 +3,7 @@ from Box2D.Box2D import (b2World, b2Body, b2FixtureDef, b2EdgeShape, b2_pi)
 import numpy as np
 import Neural
 
-MinHeight = 0.5
+MinHeight = 0.6
 
 
 class Environment:
@@ -66,7 +66,11 @@ class Environment:
             else:
                 for actor in self.actors[5:]:
                     actor.reset(0.9, 0.5, self.actors[int(np.random.uniform(0, 5))].model)
-                for actor in self.actors[1:5]:
+
+                self.actors[0].model.save('models/Gen%d_%d' % (self.gen, 0))
+                self.actors[0].reset(0, 0)
+                for idx, actor in enumerate(self.actors[1:5]):
+                    actor.model.save('models/Gen%d_%d' % (self.gen, idx+1))
                     actor.reset(0.9, 0.1)
                 self.actors[0].reset(0, 0)
 
