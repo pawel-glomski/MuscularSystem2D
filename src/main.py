@@ -10,7 +10,7 @@ from Environment import Environment
 import Neural
 
 
-PPM = 35.0  # pixels per meter
+PPM = 50.0  # pixels per meter
 TARGET_FPS = 60
 TIME_STEP = 1.0 / TARGET_FPS
 SCREEN_WIDTH, SCREEN_HEIGHT = 1000, 600
@@ -39,30 +39,45 @@ def main():
     b2EdgeShape.draw = my_draw_edge
 
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), 0, 32)
-    pygame.display.set_caption('Muscular System 2D')
     clock = pygame.time.Clock()
 
     env = Environment()
 
     running = True
+    display = 1
     while running:
         for event in pygame.event.get():
-            if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
+            if event.type == QUIT:
                 running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    display = (display + 1) % 3
+                if pygame.K_1 <= event.key <= pygame.K_9:
+                    env.genTime = event.key - pygame.K_1 + 2
+                    print("Gen time = ", env.genTime)
 
         env.step(TIME_STEP)
 
-        screen.fill((0, 0, 0, 0))
+        if display != 0:
+            screen.fill((0, 0, 0, 0))
+            env.ground_body.draw(screen)
+            env.helperEdge1.draw(screen)
+            env.helperEdge2.draw(screen)
 
-        env.ground_body.draw(screen)
-        for actor in env.actors:
-            actor.draw(screen)
+            if display == 1:
+                env.actors[0].draw(screen)
+                pygame.display.set_caption("Pos: %.2f" % env.actors[0].getRootPos().x + ", Reward: %.2f" % env.actors[0].reward)
+                mass = 0
+                for bone in env.actors[0].bones.values():
+                    mass += bone.mass
+            else:
+                for actor in env.actors:
+                    actor.draw(screen)
+            pygame.display.flip()
 
-        pygame.display.flip()
-
-        if clock.get_time() != 0:
-            print(1 / (clock.get_time()/1000))
-        clock.tick(TARGET_FPS)
+        if clock.get_time() != 0 and display != 1:
+            pygame.display.set_caption('Muscular System 2D %.2f' % (1 / (clock.get_time()/1000)))
+        clock.tick(200)
 
     pygame.quit()
     print('Done!')
