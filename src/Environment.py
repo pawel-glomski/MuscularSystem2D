@@ -76,17 +76,17 @@ class Environment:
                 resetNow = False
 
         if self.time >= self.genTime or resetNow:
+            self.actors.sort(key=lambda act: act.maxX, reverse=True)
             if record:
-                for idx, actor in enumerate(self.actors):
+                for idx, actor in enumerate(self.actors[:5]):
                     self.resultRecord['Gen'].append(self.gen)
                     self.resultRecord['Idx'].append(idx)
                     self.resultRecord['MaxX'].append(actor.maxX)
                     self.resultRecord['EndReward'].append(actor.reward)
                     self.resultRecord['TimeAlive'].append(actor.timeAlive)
-                if self.gen % 25 == 24:
-                    pd.DataFrame(self.resultRecord, columns=['Gen', 'Idx', 'MaxX', 'EndReward', 'TimeAlive']).to_csv('records.csv')
+                if self.gen % 10 == 9:
+                    pd.DataFrame(self.resultRecord, columns=['Gen', 'Idx', 'MaxX', 'EndReward', 'TimeAlive'], index=False).to_csv('records.csv')
 
-            self.actors.sort(key=lambda act: act.maxX, reverse=True)
             print("!!!!!!!!!!!!!!!!!!!!! ", self.gen, "Max x: %.2f" % self.actors[0].maxX, " !!!!!!!!!!!!!!!!!!!!!")
 
             for actor in self.actors[5:]:

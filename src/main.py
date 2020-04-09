@@ -41,7 +41,7 @@ def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), 0, 32)
     clock = pygame.time.Clock()
 
-    env = Environment('models/1Gen1450_0')
+    env = Environment('models/Gen4_0')
 
     running = True
     display = 1
@@ -53,7 +53,7 @@ def main():
                 if event.key == pygame.K_SPACE:
                     display = (display + 1) % 3
                 if pygame.K_1 <= event.key <= pygame.K_9:
-                    env.genTime = (event.key - pygame.K_1 + 1) * 2
+                    env.genTime = (event.key - pygame.K_1 + 1) ** 2
                     print("Gen time = ", env.genTime)
 
         env.step(TIME_STEP, True)
