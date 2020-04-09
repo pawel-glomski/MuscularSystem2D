@@ -41,7 +41,7 @@ def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), 0, 32)
     clock = pygame.time.Clock()
 
-    env = Environment()
+    env = Environment('models/1Gen1450_0')
 
     running = True
     display = 1
@@ -56,7 +56,7 @@ def main():
                     env.genTime = (event.key - pygame.K_1 + 1) * 2
                     print("Gen time = ", env.genTime)
 
-        env.step(TIME_STEP)
+        env.step(TIME_STEP, True)
 
         if display != 0:
             screen.fill((0, 0, 0, 0))
@@ -65,11 +65,10 @@ def main():
             env.helperEdge2.draw(screen)
 
             if display == 1:
-                env.actors[0].draw(screen)
+                for actor in env.actors[:5]:
+                    if actor.active:
+                        actor.draw(screen)
                 pygame.display.set_caption("Pos: %.2f" % env.actors[0].getRootPos().x + ", Reward: %.2f" % env.actors[0].reward)
-                mass = 0
-                for bone in env.actors[0].bones.values():
-                    mass += bone.mass
             else:
                 for actor in env.actors:
                     if actor.active:
