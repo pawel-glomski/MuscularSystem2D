@@ -44,8 +44,9 @@ def main():
     clock = pygame.time.Clock()
 
     #env = Environment('backup/2/models/Gen454_0')
-    env = Environment()
+    #env = Environment()
     #env = Environment_DDPG(loadLastCheckpoint=True)
+    env = Environment_DDPG()
     
     running = True
     display = 1
