@@ -1,6 +1,7 @@
 from pygame import Vector2 as Vec2
 import numpy as np
 from Box2D import *
+import Utils
 import Neural
 import copy
 
@@ -9,29 +10,41 @@ StartTransf = {}
 
 
 class Actor:
-    def __init__(self, world: b2World, modelPath=None):
+    def __init__(self, world: b2World, modelPath=None, noModel=False):
         self.joints = []
         self.bones = {}
         self.addBone(world, 'torso', size=(0.6, 0.2), angle=-b2_pi*0.5)
 
-        self.addBone(world, 'thigh1', 'torso',  angleLow=-b2_pi*0.25,   angleHigh=b2_pi*0.5,    size=(0.4, 0.15), color=(155, 155, 155, 255))
-        self.addBone(world, 'crus1',  'thigh1', angleLow=-b2_pi*0.9,    angleHigh=0,            size=(0.35, 0.1), color=(155, 155, 155, 255))
-        self.addBone(world, 'foot1',  'crus1',  angleLow=0,             angleHigh=b2_pi*0.65,   size=(0.25, 0.05), color=(155, 155, 155, 255))
+        #self.addBone(world, 'pelvis', 'torso',  angleLow=-b2_pi*0.1,   angleHigh=b2_pi*0.2,    size=(0.15, 0.2), angle=-b2_pi*0.5)
 
-        self.addBone(world, 'thigh2', 'torso',  angleLow=-b2_pi*0.25, angleHigh=b2_pi*0.75,    size=(0.4, 0.15))
-        self.addBone(world, 'crus2',  'thigh2', angleLow=-b2_pi*0.9,  angleHigh=0,            size=(0.35, 0.1))
-        self.addBone(world, 'foot2',  'crus2',  angleLow=0,           angleHigh=b2_pi*0.65,   size=(0.2, 0.05))
+        self.addBone(world, 'thigh1', 'torso',  angleLow=-b2_pi*0.25,   angleHigh=b2_pi*0.5,    size=(0.4, 0.15), color=(155, 155, 155, 255), angle=-b2_pi*0.5)
+        #self.addBone(world, 'thigh1', 'pelvis',  angleLow=-b2_pi*0.25,   angleHigh=b2_pi*0.5,    size=(0.4, 0.15), color=(155, 155, 155, 255), angle=-b2_pi*0.5)
+        self.addBone(world, 'crus1',  'thigh1', angleLow=-b2_pi*0.9,    angleHigh=0,            size=(0.35, 0.1), color=(155, 155, 155, 255), angle=-b2_pi*0.5)
+        self.addBone(world, 'foot1',  'crus1',  angleLow=-b2_pi*0.3,    angleHigh=b2_pi*0.2,   size=(0.25, 0.05), color=(155, 155, 155, 255))
 
-        self.model = Neural.makeModel()
-        if modelPath is not None:
-            self.model.load_weights(modelPath)
+        self.addBone(world, 'thigh2', 'torso',  angleLow=-b2_pi*0.25, angleHigh=b2_pi*0.5,    size=(0.4, 0.15), angle=-b2_pi*0.5)
+        #self.addBone(world, 'thigh2', 'pelvis',  angleLow=-b2_pi*0.25, angleHigh=b2_pi*0.5,    size=(0.4, 0.15), angle=-b2_pi*0.5)
+        self.addBone(world, 'crus2',  'thigh2', angleLow=-b2_pi*0.9,  angleHigh=0,            size=(0.35, 0.1), angle=-b2_pi*0.5)
+        self.addBone(world, 'foot2',  'crus2',  angleLow=-b2_pi*0.3,    angleHigh=b2_pi*0.2,   size=(0.2, 0.05))
 
+        if not noModel:
+            self.model = Neural.makeModel()
+            if modelPath is not None:
+                self.model.load_weights(modelPath)
+
+        self.onGround1 = False #foot1 touches ground
+        self.onGround2 = False
+        self.lastJump = False   #last foot detached from ground 
+                                #False for foot1, True for foot2
         self.reward = 0
         self.prevPos = 0
         self.active = True
         self.timeAlive = 0
         self.maxX = 0
-        self.reset(0, 0)
+        if noModel:
+            self.softReset()
+        else:
+            self.reset(0, 0)
 
     def getInputArray(self):
         inputs = []
@@ -47,9 +60,10 @@ class Actor:
         return np.reshape(np.array(inputs), (1, len(inputs)))
 
     def applyOutputArray(self, outputArr):
-        # print(outputArr)
-        for joint, speed in zip(self.joints, outputArr[0]):
-            joint.motorSpeed = (float(speed) - 0.5) * 50
+        #print(outputArr)
+        for joint, speed in zip(self.joints, outputArr):
+            #print(speed)
+            joint.motorSpeed = float(speed) * 25
 
     def draw(self, screen):
         bonesList = list(self.bones.values())
@@ -63,10 +77,10 @@ class Actor:
         for bone in self.bones.values():
             world.DestroyBody(bone)
 
-    def addBone(self, world, name, parentName='', size=(1, 0.2), angle=0, pos=(0, 1.5), anchor0=-0.95, anchor1=0.95, parentAnchor=1, thisAnchor=0, angleLow=0, angleHigh=0, maxTorque=400, color=(255, 255, 255, 255)):
+    def addBone(self, world, name, parentName='', size=(1, 0.2), angle=0, pos=(0, 1.3), anchor0=-0.95, anchor1=0.95, parentAnchor=1, thisAnchor=0, angleLow=0, angleHigh=0, maxTorque=400, color=(255, 255, 255, 255)):
         size = (size[0] / 2, size[1] / 2)
         parent = None if parentName == '' else self.bones[parentName]
-        angle = angle if parent is None else parent.angle
+        #angle = angle if parent is None else parent.angle
         pos = pos if parent is None else (parent.position + Vec2(parent.ms_anchor[parentAnchor][0] + size[0], 0).rotate(angle*RadToDeg))
 
         StartTransf[name] = (pos, angle)
@@ -105,7 +119,7 @@ class Actor:
         for bone in self.bones.values():
             bone.active = False
 
-    def reset(self, mutationRate, mutationScale, model=None):
+    def softReset(self):
         self.reward = 0
         self.prevPos = 0
         self.timeAlive = 0
@@ -119,6 +133,9 @@ class Actor:
             bone.linearVelocity = b2Vec2(0, 0)
             bone.angularVelocity = 0
             bone.active = True
+
+    def reset(self, mutationRate, mutationScale, model=None):
+        self.softReset()
 
         if model is not None:
             for j, layer in enumerate(self.model.layers):
@@ -137,3 +154,44 @@ class Actor:
                     new_weights_for_layer.append(one_dim_weight.reshape(save_shape))
 
                 self.model.layers[j].set_weights(new_weights_for_layer)
+    
+    def switchFeetReward(self):
+        oldOG1 = self.onGround1
+        oldOG2 = self.onGround2
+        oldLJ = self.lastJump
+
+        self.onGround1 = Utils.checkGroundContact(self.bones['foot1'])
+        self.onGround2 = Utils.checkGroundContact(self.bones['foot2'])
+        self.lastJump = ((self.onGround1 and oldLJ) or (oldLJ and not(oldOG1)) or (not(self.onGround2) and oldOG2))
+        
+        return ((not(self.lastJump) and oldOG1 and oldLJ) or (self.lastJump and oldOG2 and not(oldLJ)))
+
+    def calculateReward(self, MinHeight=0.6):
+        sfReward = self.switchFeetReward()
+        retReward = 0
+        actorPos = self.getRootPos()
+        if sfReward:
+            retReward += 3
+            if ((not(self.lastJump) and self.bones['foot1'].position.x < self.bones['foot2'].position.x)
+                or (self.lastJump and self.bones['foot2'].position.x < self.bones['foot1'].position.x)):
+
+                retReward += 4
+        
+        if (self.bones['foot1'].position.y > self.getRootPos().y) or (self.bones['foot2'].position.y > self.getRootPos().y):
+            retReward -= 1
+        if Utils.checkGroundContact(self.bones['thigh1']):
+            retReward -= 0.5
+        if Utils.checkGroundContact(self.bones['thigh2']):
+            retReward -= 0.5
+        if Utils.checkGroundContact(self.bones['torso']):
+            retReward -= 5
+
+        retReward += 20*(actorPos.x - self.prevPos)
+        retReward -= abs(self.bones['torso'].angle + b2_pi*0.5) * 0.3
+        retReward -= 0.5 * max(0, MinHeight - actorPos.y)
+
+        return retReward
+
+
+
+

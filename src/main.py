@@ -5,7 +5,7 @@ from pygame import Vector2 as Vec2
 import numpy as np
 import random
 from Box2D import *
-from Environment import Environment
+from Environment import Environment, Environment_DDPG
 
 import Neural
 
@@ -34,6 +34,8 @@ def drawBody(body, screen, color=(255, 255, 255, 255)):
 
 
 def main():
+    np.random.seed(0)
+
     b2Body.draw = drawBody
     b2PolygonShape.draw = my_draw_polygon
     b2EdgeShape.draw = my_draw_edge
@@ -41,8 +43,10 @@ def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), 0, 32)
     clock = pygame.time.Clock()
 
-    env = Environment('models/Gen4_0')
-
+    #env = Environment('backup/2/models/Gen454_0')
+    env = Environment()
+    #env = Environment_DDPG(loadLastCheckpoint=True)
+    
     running = True
     display = 1
     while running:
@@ -65,12 +69,12 @@ def main():
             env.helperEdge2.draw(screen)
 
             if display == 1:
-                for actor in env.actors[:5]:
+                for actor in env.getActors()[:5]:
                     if actor.active:
                         actor.draw(screen)
-                pygame.display.set_caption("Pos: %.2f" % env.actors[0].getRootPos().x + ", Reward: %.2f" % env.actors[0].reward)
+                pygame.display.set_caption("Pos: %.2f" % env.getActors()[0].getRootPos().x + ", Reward: %.2f" % env.getActors()[0].reward)
             else:
-                for actor in env.actors:
+                for actor in env.getActors():
                     if actor.active:
                         actor.draw(screen)
             pygame.display.flip()
