@@ -1,18 +1,10 @@
-import numpy as np
 from keras.models import Sequential
-#from keras.layers import Dense, Dropout, Activation, Flatten
-import os
-import tensorflow as tf
-import keras
 from keras.initializers import RandomUniform
-
-def makeModel():
-    model = Sequential()
-    model.add(keras.layers.Dense(128, input_dim=28, activation='relu'))
-    model.add(keras.layers.Dense(32, activation='relu'))
-    model.add(keras.layers.Dense(6, activation='tanh'))
-
-    return model
+from typing import List
+import tensorflow as tf
+import numpy as np
+import os
+import keras
 
 
 class OUActionNoise(object):
@@ -35,7 +27,8 @@ class OUActionNoise(object):
 
     def __repr__(self):
         return 'OrnsteinUhlenbeckActionNoise(mu={}, sigma={})'.format(
-                                                            self.mu, self.sigma)
+            self.mu, self.sigma)
+
 
 class ReplayBuffer(object):
     def __init__(self, max_size, input_shape, n_actions):
@@ -69,14 +62,15 @@ class ReplayBuffer(object):
 
         return states, actions, rewards, states_, terminal
 
+
 class Actor(object):
     def __init__(self, lr, n_actions, name, input_dims, sess, fc1_dims,
-                 fc2_dims, batch_size=64, chkpt_dir='Checkpoints/DDPG/'):
+                 fc2_dims, batch_size=64, chkpt_dir='drive/My Drive/models/'):
         tf.compat.v1.disable_eager_execution()
-        self.lr = lr    #learning rate
+        self.lr = lr  # learning rate
         self.n_actions = n_actions
         self.name = name
-        self.fc1_dims = fc1_dims    #max input size of layer 1 aka fan-in
+        self.fc1_dims = fc1_dims  # max input size of layer 1 aka fan-in
         self.fc2_dims = fc2_dims
         self.chkpt_dir = chkpt_dir
         self.input_dims = input_dims
@@ -85,7 +79,7 @@ class Actor(object):
         self.build_network()
         self.params = tf.compat.v1.trainable_variables(scope=self.name)
         self.saver = tf.compat.v1.train.Saver()
-        self.checkpoint_file = os.path.join(chkpt_dir, name +'_ddpg.ckpt')
+        self.checkpoint_file = os.path.join(chkpt_dir, name + '_ddpg.ckpt')
 
         self.unnormalized_actor_gradients = tf.gradients(
             self.mu, self.params, -self.action_gradient)
@@ -94,35 +88,35 @@ class Actor(object):
                                         self.unnormalized_actor_gradients))
 
         self.optimize = tf.compat.v1.train.AdamOptimizer(self.lr).\
-                    apply_gradients(zip(self.actor_gradients, self.params))
+            apply_gradients(zip(self.actor_gradients, self.params))
 
     def build_network(self):
         with tf.compat.v1.variable_scope(self.name):
             self.input = tf.compat.v1.placeholder(tf.float32,
-                                        shape=[None, *self.input_dims],
-                                        name='inputs')
+                                                  shape=[None, *self.input_dims],
+                                                  name='inputs')
 
             self.action_gradient = tf.compat.v1.placeholder(tf.float32,
-                                          shape=[None, self.n_actions],
-                                          name='gradients')
+                                                            shape=[None, self.n_actions],
+                                                            name='gradients')
 
             f1 = 1. / np.sqrt(self.fc1_dims)
             dense1 = tf.compat.v1.layers.dense(self.input, units=self.fc1_dims,
-                                     kernel_initializer=RandomUniform(-f1, f1),
-                                     bias_initializer=RandomUniform(-f1,f1))
+                                               kernel_initializer=RandomUniform(-f1, f1),
+                                               bias_initializer=RandomUniform(-f1, f1))
             batch1 = tf.compat.v1.layers.batch_normalization(dense1)
             layer1_activation = tf.nn.relu(batch1)
             f2 = 1. / np.sqrt(self.fc2_dims)
             dense2 = tf.compat.v1.layers.dense(layer1_activation, units=self.fc2_dims,
-                                     kernel_initializer=RandomUniform(-f2, f2),
-                                     bias_initializer=RandomUniform(-f2, f2))
+                                               kernel_initializer=RandomUniform(-f2, f2),
+                                               bias_initializer=RandomUniform(-f2, f2))
             batch2 = tf.compat.v1.layers.batch_normalization(dense2)
             layer2_activation = tf.nn.relu(batch2)
             f3 = 0.003
             mu = tf.compat.v1.layers.dense(layer2_activation, units=self.n_actions,
-                            activation='tanh',
-                            kernel_initializer=RandomUniform(-f3, f3),
-                            bias_initializer=RandomUniform(-f3, f3))
+                                           activation='tanh',
+                                           kernel_initializer=RandomUniform(-f3, f3),
+                                           bias_initializer=RandomUniform(-f3, f3))
             self.mu = mu
 
     def predict(self, inputs):
@@ -141,9 +135,10 @@ class Actor(object):
         print("...Saving checkpoint...")
         self.saver.save(self.sess, self.checkpoint_file)
 
+
 class Critic(object):
     def __init__(self, lr, n_actions, name, input_dims, sess, fc1_dims, fc2_dims,
-                 batch_size=64, chkpt_dir='Checkpoints/DDPG/'):
+                 batch_size=64, chkpt_dir='drive/My Drive/models/'):
         self.lr = lr
         self.n_actions = n_actions
         self.name = name
@@ -156,7 +151,7 @@ class Critic(object):
         self.build_network()
         self.params = tf.compat.v1.trainable_variables(scope=self.name)
         self.saver = tf.compat.v1.train.Saver()
-        self.checkpoint_file = os.path.join(chkpt_dir, name +'_ddpg.ckpt')
+        self.checkpoint_file = os.path.join(chkpt_dir, name + '_ddpg.ckpt')
 
         self.optimize = tf.compat.v1.train.AdamOptimizer(self.lr).minimize(self.loss)
 
@@ -165,40 +160,40 @@ class Critic(object):
     def build_network(self):
         with tf.compat.v1.variable_scope(self.name):
             self.input = tf.compat.v1.placeholder(tf.float32,
-                                        shape=[None, *self.input_dims],
-                                        name='inputs')
+                                                  shape=[None, *self.input_dims],
+                                                  name='inputs')
 
             self.actions = tf.compat.v1.placeholder(tf.float32,
-                                          shape=[None, self.n_actions],
-                                          name='actions')
+                                                    shape=[None, self.n_actions],
+                                                    name='actions')
 
             self.q_target = tf.compat.v1.placeholder(tf.float32,
-                                           shape=[None,1],
-                                           name='targets')
+                                                     shape=[None, 1],
+                                                     name='targets')
 
             f1 = 1. / np.sqrt(self.fc1_dims)
             dense1 = tf.compat.v1.layers.dense(self.input, units=self.fc1_dims,
-                                     kernel_initializer=RandomUniform(-f1, f1),
-                                     bias_initializer=RandomUniform(-f1, f1))
+                                               kernel_initializer=RandomUniform(-f1, f1),
+                                               bias_initializer=RandomUniform(-f1, f1))
             batch1 = tf.compat.v1.layers.batch_normalization(dense1)
             layer1_activation = tf.nn.relu(batch1)
 
             f2 = 1. / np.sqrt(self.fc2_dims)
             dense2 = tf.compat.v1.layers.dense(layer1_activation, units=self.fc2_dims,
-                                     kernel_initializer=RandomUniform(-f2, f2),
-                                     bias_initializer=RandomUniform(-f2, f2))
+                                               kernel_initializer=RandomUniform(-f2, f2),
+                                               bias_initializer=RandomUniform(-f2, f2))
             batch2 = tf.compat.v1.layers.batch_normalization(dense2)
 
             action_in = tf.compat.v1.layers.dense(self.actions, units=self.fc2_dims,
-                                        activation='relu')
+                                                  activation='relu')
             state_actions = tf.add(batch2, action_in)
             state_actions = tf.nn.relu(state_actions)
 
             f3 = 0.003
             self.q = tf.compat.v1.layers.dense(state_actions, units=1,
-                               kernel_initializer=RandomUniform(-f3, f3),
-                               bias_initializer=RandomUniform(-f3, f3),
-                               kernel_regularizer=tf.keras.regularizers.l2(0.01))
+                                               kernel_initializer=RandomUniform(-f3, f3),
+                                               bias_initializer=RandomUniform(-f3, f3),
+                                               kernel_regularizer=tf.keras.regularizers.l2(0.01))
 
             self.loss = tf.losses.mean_squared_error(self.q_target, self.q)
 
@@ -206,16 +201,18 @@ class Critic(object):
         return self.sess.run(self.q,
                              feed_dict={self.input: inputs,
                                         self.actions: actions})
+
     def train(self, inputs, actions, q_target):
         return self.sess.run(self.optimize,
-                      feed_dict={self.input: inputs,
-                                 self.actions: actions,
-                                 self.q_target: q_target})
+                             feed_dict={self.input: inputs,
+                                        self.actions: actions,
+                                        self.q_target: q_target})
 
     def get_action_gradients(self, inputs, actions):
         return self.sess.run(self.action_gradients,
                              feed_dict={self.input: inputs,
                                         self.actions: actions})
+
     def load_checkpoint(self):
         print("...Loading checkpoint...")
         self.saver.restore(self.sess, self.checkpoint_file)
@@ -224,7 +221,8 @@ class Critic(object):
         print("...Saving checkpoint...")
         self.saver.save(self.sess, self.checkpoint_file)
 
-class Agent(object):
+
+class DDPGAgent(object):
     def __init__(self, alpha, beta, input_dims, tau, gamma=0.99, n_actions=2,
                  max_size=1000000, layer1_size=400, layer2_size=300,
                  batch_size=64):
@@ -235,7 +233,7 @@ class Agent(object):
         self.sess = tf.compat.v1.Session()
         self.actor = Actor(alpha, n_actions, 'Actor', input_dims, self.sess,
                            layer1_size, layer2_size)
-        self.critic = Critic(beta, n_actions, 'Critic', input_dims,self.sess,
+        self.critic = Critic(beta, n_actions, 'Critic', input_dims, self.sess,
                              layer1_size, layer2_size)
 
         self.target_actor = Actor(alpha, n_actions, 'TargetActor',
@@ -249,19 +247,18 @@ class Agent(object):
         # define ops here in __init__ otherwise time to execute the op
         # increases with each execution.
         self.update_critic = \
-        [self.target_critic.params[i].assign(
-                      tf.multiply(self.critic.params[i], self.tau) \
-                    + tf.multiply(self.target_critic.params[i], 1. - self.tau))
-         for i in range(len(self.target_critic.params))]
+            [self.target_critic.params[i].assign(
+                tf.multiply(self.critic.params[i], self.tau)
+                + tf.multiply(self.target_critic.params[i], 1. - self.tau))
+                for i in range(len(self.target_critic.params))]
 
         self.update_actor = \
-        [self.target_actor.params[i].assign(
-                      tf.multiply(self.actor.params[i], self.tau) \
-                    + tf.multiply(self.target_actor.params[i], 1. - self.tau))
-         for i in range(len(self.target_actor.params))]
+            [self.target_actor.params[i].assign(
+                tf.multiply(self.actor.params[i], self.tau)
+                + tf.multiply(self.target_actor.params[i], 1. - self.tau))
+                for i in range(len(self.target_actor.params))]
 
         self.sess.run(tf.compat.v1.global_variables_initializer())
-
         self.update_network_parameters(first=True)
 
     def update_network_parameters(self, first=False):
@@ -279,8 +276,8 @@ class Agent(object):
         self.memory.store_transition(state, action, reward, new_state, done)
 
     def choose_action(self, state):
-        #state = state[np.newaxis, :]
-        mu = self.actor.predict(state) # returns list of list
+        # state = state[np.newaxis, :]
+        mu = self.actor.predict(state)  # returns list of list
         noise = self.noise()
         mu_prime = mu + noise
 
@@ -290,16 +287,16 @@ class Agent(object):
         if self.memory.mem_cntr < self.batch_size:
             return
         state, action, reward, new_state, done = \
-                                      self.memory.sample_buffer(self.batch_size)
-                                      
+            self.memory.sample_buffer(self.batch_size)
+
         critic_value_ = self.target_critic.predict(new_state,
-                                           self.target_actor.predict(new_state))
+                                                   self.target_actor.predict(new_state))
         target = []
         for j in range(self.batch_size):
             target.append(reward[j] + self.gamma*critic_value_[j]*done[j])
         target = np.reshape(target, (self.batch_size, 1))
 
-        _ = self.critic.train(state, action, target)
+        self.critic.train(state, action, target)
 
         a_outs = self.actor.predict(state)
         grads = self.critic.get_action_gradients(state, a_outs)
@@ -317,6 +314,29 @@ class Agent(object):
     def load_models(self):
         self.actor.load_checkpoint()
         self.target_actor.load_checkpoint()
-        self.critic.load_checkpoint()   
-        self.target_critic.load_checkpoint()    
+        self.critic.load_checkpoint()
+        self.target_critic.load_checkpoint()
 
+
+class DDPG:
+    def __init__(self, loadLastCheckpoint=False):
+        self.agentsNum = 1  # for main's api
+        self.ddpgAgent = DDPGAgent(alpha=0.00005, beta=0.0005, input_dims=[30], tau=0.001,
+                                   batch_size=64, layer1_size=800, layer2_size=600, n_actions=6)
+        if loadLastCheckpoint:
+            self.ddpgAgent.load_models()
+
+    def save(self, idx: int, cumReward: int, episode: int):
+        print("!!!!!!!!!!!!!!!!!!!!! ", episode, "Saving, reward: %.2f" % cumReward, " !!!!!!!!!!!!!!!!!!!!!")
+        self.ddpgAgent.save_models()
+
+    def predict(self, statesArr: (List[List[float]], List[bool])) -> List[List[float]]:
+        return self.ddpgAgent.choose_action(statesArr[0][0])
+
+    def toEnvActions(self, rawAction):  # to match main's api
+        return [rawAction]
+
+    def train(self, statesArr: (List[List[float]], List[bool]), newStates: (List[List[float]], List[bool]),
+              rawActions: (int, np.ndarray), rewardsArr: List[float], cumRewards: List[float], done: bool):
+        self.ddpgAgent.remember(statesArr[0][0], rawActions, rewardsArr[0], newStates[0][0], done)
+        self.ddpgAgent.learn()
