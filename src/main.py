@@ -7,13 +7,15 @@ import numpy as np
 
 def main():
     # np.random.seed(0)
-    # method = Genetic(100,
-    #                  modelPath='drive/My Drive/models/Ep32'
-    #                  )
+    method = Genetic(50,
+                     #                  modelPath='drive/My Drive/models/Ep32'
+                     )
     # method = DQN(
     #     # 'drive/My Drive/models/DQNEp1'
     # )
-    method = DDPG()
+    # method = DDPG(
+    #     True
+    # )
 
     env = Environment(method.agentsNum)
     maxCumReward = -float('inf')

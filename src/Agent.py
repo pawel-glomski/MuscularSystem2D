@@ -13,28 +13,20 @@ class Agent:
     def __init__(self, world: b2World):
         self.joints = []
         self.bones = {}
+        self.secondColor = (155, 155, 155, 255)
         self.addBone(world, 'torso', size=(0.6, 0.2), angle=-b2_pi*0.5, density=275)
-
-        # self.addBone(world, 'pelvis', 'torso',  angleLow=-b2_pi*0.1,   angleHigh=b2_pi*0.2,    size=(0.15, 0.2), angle=-b2_pi*0.5)
-
-        self.addBone(world, 'thigh1', 'torso',  angleLow=-b2_pi*0.4,   angleHigh=b2_pi * 0.4,
-                     size=(0.4, 0.15), color=(155, 155, 155, 255), angle=-b2_pi*0.5)
-        # self.addBone(world, 'thigh1', 'pelvis',  angleLow=-b2_pi*0.25,   angleHigh=b2_pi*0.5,    size=(0.4, 0.15), color=(155, 155, 155, 255), angle=-b2_pi*0.5)
-        self.addBone(world, 'crus1',  'thigh1', angleLow=-b2_pi*0.9,    angleHigh=0,
-                     size=(0.35, 0.1), color=(155, 155, 155, 255), angle=-b2_pi*0.5)
-        self.addBone(world, 'foot1',  'crus1',  angleLow=-b2_pi*0.3,    angleHigh=b2_pi*0.2,   size=(0.275, 0.075), color=(155, 155, 155, 255))
-
-        self.addBone(world, 'thigh2', 'torso',  angleLow=-b2_pi*0.4, angleHigh=b2_pi*0.4,    size=(0.4, 0.15), angle=-b2_pi*0.5)
-        # self.addBone(world, 'thigh2', 'pelvis',  angleLow=-b2_pi*0.25, angleHigh=b2_pi*0.5,    size=(0.4, 0.15), angle=-b2_pi*0.5)
-        self.addBone(world, 'crus2',  'thigh2', angleLow=-b2_pi*0.9,  angleHigh=0,            size=(0.35, 0.1), angle=-b2_pi*0.5)
-        self.addBone(world, 'foot2',  'crus2',  angleLow=-b2_pi*0.3,    angleHigh=b2_pi*0.2,   size=(0.275, 0.075))
-
+        self.addBone(world, 'thigh1', 'torso', angleLow=-b2_pi*0.4, angleHigh=b2_pi * 0.4, size=(0.4, 0.15), angle=-b2_pi*0.5, color=self.secondColor)
+        self.addBone(world, 'thigh2', 'torso', angleLow=-b2_pi*0.4, angleHigh=b2_pi * 0.4, size=(0.4, 0.15), angle=-b2_pi*0.5)
+        self.addBone(world, 'crus1',  'thigh1', angleLow=-b2_pi*0.9, angleHigh=0, size=(0.35, 0.1), angle=-b2_pi*0.5, color=self.secondColor)
+        self.addBone(world, 'crus2',  'thigh2', angleLow=-b2_pi*0.9, angleHigh=0, size=(0.35, 0.1), angle=-b2_pi*0.5)
+        self.addBone(world, 'foot1',  'crus1', angleLow=-b2_pi*0.3, angleHigh=b2_pi*0.2, size=(0.275, 0.075), color=self.secondColor)
+        self.addBone(world, 'foot2',  'crus2', angleLow=-b2_pi*0.3, angleHigh=b2_pi*0.2, size=(0.275, 0.075))
         self.active = True
         self.cumReward = 0
         self.timeAlive = 0
         self.maxX = 0
         self.hp = 1
-        self.softReset()
+        self.resetState()
 
     def getState(self):
         states = []
@@ -49,20 +41,19 @@ class Agent:
         for bone in list(self.bones.values())[1:]:  # pomijamy roota
             states += bone.position - rootPos
             states += bone.linearVelocity - rootBone.linearVelocity
-        # states.append(Utils.checkGroundContact(self.bones['foot1']))
-        # states.append(Utils.checkGroundContact(self.bones['foot2']))
         return np.reshape(np.array(states), (1, len(states)))
 
     def applyActions(self, actions):
         for joint, torque in zip(self.joints, actions):
-            joint.maxMotorTorque = abs(float(torque)) * 100
+            joint.maxMotorTorque = abs(float(torque)) * 75
             joint.motorSpeed = np.copysign(9999999, float(torque))
 
     def draw(self, screen):
         bonesList = list(self.bones.values())
-        for bone in bonesList[1:]:
+        for bone in [bone for bone in bonesList if bone.color == self.secondColor]:
             bone.draw(screen, bone.color)
-        bonesList[0].draw(screen)
+        for bone in [bone for bone in bonesList if bone.color != self.secondColor]:
+            bone.draw(screen, bone.color)
 
     def destroy(self, world: b2World):
         for joint in self.joints:
@@ -113,12 +104,12 @@ class Agent:
         for bone in self.bones.values():
             bone.active = False
 
-    def softReset(self, legsOffset=b2Vec2(0, 0)):
+    def resetState(self, legsOffset=b2Vec2(0, 0)):
         self.hp = 1
         self.cumReward = 0
         self.timeAlive = 0
         self.active = True
-        self.maxX = 0
+        self.maxX = -float('inf')
         for joint in self.joints:
             joint.motorSpeed = 0
             joint.maxMotorTorque = 0
@@ -135,3 +126,31 @@ class Agent:
         self.bones['thigh2'].position -= legsOffset
         self.bones['crus2'].position -= 2*legsOffset
         self.bones['foot2'].position -= 2*legsOffset
+
+    def getRealStates(self):
+        state = [float(self.hp)]
+        for bone in self.bones.values():
+            state.append(b2Vec2(bone.position))
+            state.append(float(bone.angle))
+            state.append(b2Vec2(bone.linearVelocity))
+            state.append(float(bone.angularVelocity))
+        return state
+
+    def resetToState(self, state):
+
+        def postInc():
+            postInc.i += 1
+            return postInc.i - 1
+        postInc.i = 0
+
+        self.hp = float(state[postInc()])
+        self.cumReward = 0
+        self.timeAlive = 0
+        self.active = True
+        self.maxX = -float('inf')
+        for bone in self.bones.values():
+            bone.position = b2Vec2(state[postInc()])
+            bone.angle = float(state[postInc()])
+            bone.linearVelocity = b2Vec2(state[postInc()])
+            bone.angularVelocity = float(state[postInc()])
+            bone.active = True

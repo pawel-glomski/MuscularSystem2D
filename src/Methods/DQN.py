@@ -27,10 +27,10 @@ class DQN:
                                 self.actionSpace.append([hip1Action, hip2Action, knee1Action, knee2Action, ankle1Action, ankle2Action])
         if modelPath is None:
             self.model = self._makeModel()
-            self.modelTarget = self._makeModel()
+            self.targetModel = self._makeModel()
         else:
             self.model = keras.models.load_model(modelPath)
-            self.modelTarget = keras.models.load_model(modelPath)
+            self.targetModel = keras.models.load_model(modelPath)
         self.epsilon = 0.1
         self.epsilonMin = 0.01
         self.epsilonDecay = 1
@@ -51,18 +51,17 @@ class DQN:
 
     def predict(self, statesArr: (List[List[float]], List[bool])) -> (int, np.ndarray):
         state = statesArr[0][0]
-        predictResult = self.model.predict(state)[0]
         self.epsilon = max(self.epsilonMin, self.epsilon*self.epsilonDecay)
         if np.random.random() < self.epsilon:
-            return (np.random.randint(len(self.actionSpace)), predictResult)
-        return (np.argmax(predictResult), predictResult)
+            return np.random.randint(len(self.actionSpace))
+        return np.argmax(self.model.predict(state)[0])
 
     def toEnvActions(self, rawAction):
-        return [self.actionSpace[rawAction[0]]]  # array, to match env's api
+        return [self.actionSpace[rawAction]]  # array, to match env's api
 
     def train(self, statesArr: (List[List[float]], List[bool]), newStates: (List[List[float]], List[bool]),
               rawActions: (int, np.ndarray), rewardsArr: List[float], cumRewards: List[float], done: bool):
-        self.remember(statesArr[0][0], rawActions[0], rewardsArr[0], newStates[0][0], done)
+        self.remember(statesArr[0][0], rawActions, rewardsArr[0], newStates[0][0], done)
         self.replay()
         self.updateTarget()
 
@@ -77,17 +76,17 @@ class DQN:
         samples = random.sample(self.replayBuffer, batchSize)
         for sample in samples:
             state, actionIdx, reward, newState, done = sample
-            target = self.modelTarget.predict(state)
+            target = self.targetModel.predict(state)
             if done:
                 target[0][actionIdx] = reward
             else:
-                futureQ = max(self.modelTarget.predict(newState)[0])
+                futureQ = max(self.targetModel.predict(newState)[0])
                 target[0][actionIdx] = reward + (futureQ * 0.99)
             self.model.fit(state, target, epochs=1, verbose=0)
 
     def updateTarget(self):
         weights = self.model.get_weights()
-        targetWeights = self.modelTarget.get_weights()
+        targetWeights = self.targetModel.get_weights()
         for i in range(len(targetWeights)):
             targetWeights[i] = weights[i] * self.tau + targetWeights[i] * (1 - self.tau)
-        self.modelTarget.set_weights(targetWeights)
+        self.targetModel.set_weights(targetWeights)

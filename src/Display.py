@@ -38,6 +38,7 @@ clock = pygame.time.Clock()
 def clearDrawDisplay(env):
     global screen
     global display
+    global screenOffset
     if screen is None:
         screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), 0, 32)
 
@@ -52,7 +53,6 @@ def clearDrawDisplay(env):
             if pygame.K_1 <= event.key <= pygame.K_9:
                 env.episodeTime = (event.key - pygame.K_1 + 1) ** 2
                 print("Episode time = ", env.episodeTime)
-    screenOffset = (SCREEN_WIDTH * 0.5 - env.agents[0].getRootPos().x * PPM, SCREEN_HEIGHT * 0.9)
     env.helperEdge1.position.x = (int((env.agents[0].getRootPos().x + 1) / 5) + 1) * 5
     clock.tick(999999)
     pygame.display.set_caption('Muscular System 2D, alive = %d, fps = %.2f' % (len([0 for a in env.agents if a.active]), clock.get_fps()))
@@ -68,6 +68,7 @@ def clearDrawDisplay(env):
             for agent in sAgents[:5]:
                 if agent.active:
                     agent.draw(screen)
+            screenOffset = (SCREEN_WIDTH * 0.5 - sAgents[0].getRootPos().x * PPM, SCREEN_HEIGHT * 0.9)
         else:
             for agent in env.agents:
                 if agent.active:
