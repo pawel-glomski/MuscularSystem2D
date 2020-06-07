@@ -9,9 +9,9 @@ import Display
 
 
 class Environment:
-    def __init__(self, agentsNum: int, recordResults: bool = True):
+    def __init__(self, agentsNum: int, recordResults: bool = True, epTime: float = 16):
         self.episode = 0
-        self.episodeTime = 16  # 50 bylo w ddpg
+        self.episodeTime = epTime
         self.time = 0
         self.timestep = 1.0/60
         self.randomImpulse = b2Vec2(0, 0)
@@ -43,14 +43,14 @@ class Environment:
             position=(0, 0)
         )
 
-    def step(self, actionsArr: List[List[float]], mainEnv: bool = True) -> ((List[List[float]], List[bool]), List[float], bool):  # states, rewards, done?
+    def step(self, actionsArr: List[List[float]], mainEnv: bool = True) -> ((List[List[float]], List[Agent]), List[float], bool):  # states, rewards, done?
         if self.time == 0:
             if mainEnv:
                 print("Starting episode %d" % self.episode + "... ", end="", flush=True)
 
         self._tick(actionsArr)
         stateArr, rewardArr = self._evalStates()
-        done = self.time >= self.episodeTime or np.count_nonzero(stateArr[1]) == 0
+        done = self.time >= self.episodeTime or np.count_nonzero([a.active for a in self.agents]) == 0
 
         if done and mainEnv:  # mainEnv = false when training in Genetic
             agentsSorted = sorted(self.agents, key=lambda act: act.cumReward, reverse=True)
@@ -75,7 +75,7 @@ class Environment:
                 agent.bones['torso'].ApplyLinearImpulse(impulse=self.randomImpulse, point=(0.6, 0), wake=True)
         self.randomImpulse *= 0.6
 
-    def _evalStates(self) -> ((List[List[float]], List[bool]), List[float]):  # (state, reward)
+    def _evalStates(self) -> ((List[List[float]], List[Agent]), List[float]):  # (state, reward)
         rewardArr = [0] * len(self.agents)
         for i, agent in enumerate(self.agents):
             if agent.active:
@@ -106,10 +106,10 @@ class Environment:
         )
 
     def _getStates(self):
-        return ([a.getState() for a in self.agents], [a.active for a in self.agents], [a for a in self.agents])
+        return ([a.getState() if a.active else None for a in self.agents], [a for a in self.agents])
 
-    def reset(self, initState: List[float] = None, initTime: float = 0.0) -> List[List[float]]:
-        self.time = initTime
+    def reset(self, initState: List[float] = None) -> (List[List[float]], List[Agent]):
+        self.time = 0
         self.episode += 1
         off = b2Vec2(np.random.normal(0, 0.1), 0)  # same for each
         if initState is None:
