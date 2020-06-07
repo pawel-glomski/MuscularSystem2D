@@ -21,7 +21,7 @@ class Genetic:
         self.targetModel = Genetic._makeModel(self.mainModel, self.mainModel.get_weights())
         self.trainingEnv = Environment(trainingBodiesNum, epTime=2)
         self.pastBuffer = deque(maxlen=1000)
-        self.targetActions = [[np.zeros((1, 6))]] * trainingBodiesNum
+        self.targetActions = [np.zeros((1, 6))] * trainingBodiesNum
         self.currentActions = [np.zeros((1, 6))] * trainingBodiesNum
         self.mutation = 0
         self.learningStatesSize = 8
@@ -83,12 +83,13 @@ class Genetic:
     def _mutate(self, states) -> bool:  # mutated?
         if self.mutation == 0:
             self.mutation = self.initMutation
+            self.targetActions[0] = self.mainModel.predict(states[0])
             for i in range(1, len(self.targetActions)):
                 self.targetActions[i] = np.reshape(np.random.choice([-1, 1], 6, replace=True), (1, -1))
         for i, (targetActions, state) in enumerate(zip(self.targetActions, states)):
             if state is not None:
-                mainActions = self.mainModel.predict(state)
-                self.currentActions[i] = (targetActions * self.mutation + mainActions * (1 - self.mutation)) if i != 0 else mainActions
+                self.currentActions[i] = np.array(self.targetActions[0]) if i == 0 else (
+                    targetActions * self.mutation + self.mainModel.predict(state) * (1 - self.mutation))
         self.mutation *= self.mutationDecay
 
     def learn(self, learningStates, cumRewards):

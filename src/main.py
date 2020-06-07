@@ -8,7 +8,7 @@ import numpy as np
 def main():
     # np.random.seed(0)
     method = Genetic(100,
-                     #  modelPath='drive/My Drive/models/GenEp1769'
+                     modelPath='drive/My Drive/models/GenEp1769'
                      )
     # method = DQN(
     #     # 'drive/My Drive/models/DQNEp1'
