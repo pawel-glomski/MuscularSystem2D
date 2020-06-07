@@ -53,9 +53,9 @@ def clearDrawDisplay(env):
             if pygame.K_1 <= event.key <= pygame.K_9:
                 env.episodeTime = (event.key - pygame.K_1 + 1) ** 2
                 print("Episode time = ", env.episodeTime)
-    env.helperEdge1.position.x = (int((env.agents[0].getRootPos().x + 1) / 5) + 1) * 5
+    env.helperEdge1.position.x = (int((env.bodies[0].getRootPos().x + 1) / 5) + 1) * 5
     clock.tick(999999)
-    pygame.display.set_caption('Muscular System 2D, alive = %d, fps = %.2f' % (len([0 for a in env.agents if a.active]), clock.get_fps()))
+    pygame.display.set_caption('Muscular System 2D, alive = %d, fps = %.2f' % (len([0 for a in env.bodies if a.active]), clock.get_fps()))
     if display != 0:
         screen.fill((0, 0, 0, 0))
 
@@ -64,14 +64,14 @@ def clearDrawDisplay(env):
         env.helperEdge2.draw(screen)
 
         if display == 1:
-            sAgents = sorted(env.agents, key=lambda ag: ag.cumReward, reverse=True)
-            for agent in sAgents[:5]:
-                if agent.active:
-                    agent.draw(screen)
-            screenOffset = (SCREEN_WIDTH * 0.5 - sAgents[0].getRootPos().x * PPM, SCREEN_HEIGHT * 0.9)
+            sBodies = sorted(env.bodies, key=lambda ag: ag.cumReward, reverse=True)
+            for body in sBodies[:5]:
+                if body.active:
+                    body.draw(screen)
+            screenOffset = (SCREEN_WIDTH * 0.5 - sBodies[0].getRootPos().x * PPM, SCREEN_HEIGHT * 0.9)
         else:
-            for agent in env.agents:
-                if agent.active:
-                    agent.draw(screen)
+            for body in env.bodies:
+                if body.active:
+                    body.draw(screen)
         pygame.display.flip()
     return running

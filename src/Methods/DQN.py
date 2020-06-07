@@ -6,17 +6,16 @@ import random
 
 
 def discActions(min: float, max: float, n: int):
-    dist = max - min
-    discLen = dist / n
+    discLen = (max - min) / n
     return [min + discLen * i + discLen*0.5 for i in range(n)]
 
 
 class DQN:
     def __init__(self, modelPath=None):
-        self.agentsNum = 1
-        self.hipActionDisc = discActions(-1, 1, 3)
-        self.kneeActionDisc = discActions(-1, 1, 3)
-        self.ankleActionDisc = discActions(-1, 1, 3)
+        self.bodiesNum = 1
+        self.hipActionDisc = discActions(-1, 1, 2)
+        self.kneeActionDisc = discActions(-1, 1, 2)
+        self.ankleActionDisc = discActions(-1, 1, 2)
         self.actionSpace = []
         for hip1Action in self.hipActionDisc:
             for hip2Action in self.hipActionDisc:

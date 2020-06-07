@@ -2,7 +2,7 @@ from Environment import Environment
 from collections import deque
 from random import sample
 from typing import List
-from Agent import Agent
+from Body import Body
 import tensorflow as tf
 import numpy as np
 import random
@@ -11,25 +11,25 @@ import os
 
 
 class Genetic:
-    def __init__(self, trainingAgentsNum, modelPath=None):
-        self.agentsNum = 1
+    def __init__(self, trainingBodiesNum, modelPath=None):
+        self.bodiesNum = 1
         self.trainingModels = []
         if modelPath is not None:
             self.mainModel = keras.models.load_model(modelPath)
         else:
             self.mainModel = Genetic._makeModel()
         self.targetModel = Genetic._makeModel(self.mainModel, self.mainModel.get_weights())
-        self.trainingEnv = Environment(trainingAgentsNum, epTime=2)
+        self.trainingEnv = Environment(trainingBodiesNum, epTime=2)
         self.pastBuffer = deque(maxlen=1000)
-        self.targetActions = [[np.zeros((1, 6))]] * trainingAgentsNum
-        self.currentActions = [np.zeros((1, 6))] * trainingAgentsNum
+        self.targetActions = [[np.zeros((1, 6))]] * trainingBodiesNum
+        self.currentActions = [np.zeros((1, 6))] * trainingBodiesNum
         self.mutation = 0
         self.learningStatesSize = 8
         self.initMutation = 1.0
         self.mutationDecay = 0.98
 
     @staticmethod
-    def _makeModel(base=None, wbs=None, lr=0.0005):
+    def _makeModel(base=None, wbs=None, lr=0.005):
         if base is None:
             model = keras.Sequential()
             model.add(keras.layers.Dense(600, input_dim=30, activation='relu'))
@@ -53,19 +53,19 @@ class Genetic:
     def toEnvActions(self, rawAction):  # to match main's api
         return rawAction
 
-    def train(self, statesArr: (List[List[float]], List[Agent]), newStates: (List[List[float]], List[bool]),
+    def train(self, statesArr: (List[List[float]], List[Body]), newStates: (List[List[float]], List[bool]),
               rawActions: List[List[float]], rewardsArr: List[float], cumRewards: List[float], done: bool):
-        agent: Agent = statesArr[1][0]
-        if agent.hp > 0.95 or np.random.random() < agent.hp * 0.1:  # hp <0,1>, do not save dying states
-            self.pastBuffer.append(agent.getRealStates())
+        body: Body = statesArr[1][0]
+        if body.health > 0.95 or np.random.random() < body.health * 0.1:  # health <0,1>, do not save dying states
+            self.pastBuffer.append(body.getRealStates())
         if done and len(self.pastBuffer) > 128:
-            print('Training...', end='\t')
+            print('Training...', end='\t', flush=True)
 
             past = random.sample(self.pastBuffer, 1)[0]
             while True:
                 self.mutation = 0  # enable mutation
                 learningStates = []
-                cumRewards = np.zeros(len(self.trainingEnv.agents))
+                cumRewards = np.zeros(len(self.trainingEnv.bodies))
                 done = False
                 states = self.trainingEnv.reset(initState=past)
                 while not done:
@@ -92,10 +92,14 @@ class Genetic:
         self.mutation *= self.mutationDecay
 
     def learn(self, learningStates, cumRewards):
-        bestIdx = np.argmax(cumRewards)  # - to reverse the order to descending
-        if bestIdx == 0:  # do not train if the best one is the current best one
+        idxSorted = np.argsort(-cumRewards)  # - to reverse the order to descending
+        if idxSorted[0] == 0:  # do not train if the best one is the current best one
             return False
-        targetActions = self.targetActions[bestIdx]
+        bestIdx = idxSorted[0]
+        secondIdx = idxSorted[1]
+        rRatio = (cumRewards[secondIdx] / cumRewards[bestIdx] / 2) if cumRewards[secondIdx] > 0 else 0
+        targetActions = self.targetActions[bestIdx] * (1 - rRatio) + self.targetActions[secondIdx] * rRatio
+
         tau = self.initMutation
         for states in learningStates:
             state = states[bestIdx]
@@ -106,7 +110,7 @@ class Genetic:
         return True
 
     def updateTarget(self):
-        tau = 0.1
+        tau = 0.01
         weights = self.mainModel.get_weights()
         targetWeights = self.targetModel.get_weights()
         for i in range(len(targetWeights)):

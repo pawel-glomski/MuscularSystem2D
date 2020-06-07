@@ -17,11 +17,11 @@ def main():
     #     True
     # )
 
-    env = Environment(method.agentsNum)
+    env = Environment(method.bodiesNum)
     maxCumReward = -float('inf')
     running = True
     while running:
-        cumRewards = np.zeros(method.agentsNum)
+        cumRewards = np.zeros(method.bodiesNum)
         done = False
         states = env.reset()
         while not done and running:

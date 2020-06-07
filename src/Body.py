@@ -9,7 +9,7 @@ RadToDeg = 180/b2_pi
 StartTransf = {}
 
 
-class Agent:
+class Body:
     def __init__(self, world: b2World):
         self.joints = []
         self.bones = {}
@@ -25,7 +25,7 @@ class Agent:
         self.cumReward = 0
         self.timeAlive = 0
         self.maxX = 0
-        self.hp = 1
+        self.health = 1
         self.resetState()
 
     def getState(self):
@@ -33,7 +33,7 @@ class Agent:
         rootBone = self.bones['torso']
         rootPos = self.getRootPos()
 
-        states.append(self.hp)
+        states.append(self.health)
         states.append(rootPos.y)
         states.append(rootBone.angle + b2_pi/2)
         states.append(rootBone.angularVelocity)
@@ -105,7 +105,7 @@ class Agent:
             bone.active = False
 
     def resetState(self, legsOffset=b2Vec2(0, 0)):
-        self.hp = 1
+        self.health = 1
         self.cumReward = 0
         self.timeAlive = 0
         self.active = True
@@ -128,7 +128,7 @@ class Agent:
         self.bones['foot2'].position -= 2*legsOffset
 
     def getRealStates(self):
-        state = [float(self.hp)]
+        state = [float(self.health)]
         for bone in self.bones.values():
             state.append(b2Vec2(bone.position))
             state.append(float(bone.angle))
@@ -143,7 +143,7 @@ class Agent:
             return postInc.i - 1
         postInc.i = 0
 
-        self.hp = float(state[postInc()])
+        self.health = float(state[postInc()])
         self.cumReward = 0
         self.timeAlive = 0
         self.active = True
