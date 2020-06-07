@@ -55,7 +55,7 @@ class Agent:
 
     def applyActions(self, actions):
         for joint, torque in zip(self.joints, actions):
-            joint.maxMotorTorque = abs(float(torque)) * 100
+            joint.maxMotorTorque = abs(float(torque)) * 75
             joint.motorSpeed = np.copysign(9999999, float(torque))
 
     def draw(self, screen):

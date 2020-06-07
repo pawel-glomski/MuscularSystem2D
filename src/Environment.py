@@ -2,7 +2,7 @@ from Box2D.Box2D import b2Body, b2EdgeShape, b2FixtureDef, b2Vec2, b2World, b2_p
 from typing import List
 from Agent import Agent
 import numpy as np
-import pandas as pd
+#import pandas as pd
 import Utils
 import keras
 import Display
@@ -25,7 +25,7 @@ class Environment:
 
     def _makeWorld(self):
         self.world = b2World(gravity=(0, -10), doSleep=True)
-        self.MinHeight = 0.7
+        self.MinHeight = 0.8
         self.ground_body = self.world.CreateStaticBody(
             fixtures=b2FixtureDef(shape=b2EdgeShape(vertices=[(-1e5, 0), (1e5, 0)]),
                                   categoryBits=0x0002, maskBits=0x0004),
@@ -80,7 +80,7 @@ class Environment:
             if agent.active:
                 agentPos = agent.getRootPos()
                 if agentPos.y >= self.MinHeight:
-                    agent.hp = min(agent.hp + 1.5*self.timestep, 1)
+                    agent.hp = min(agent.hp + 1.25*self.timestep, 1)
                 else:
                     agent.hp = max(agent.hp - self.timestep, 0)
                     #     # or abs(agent.bones['torso'].angle + b2_pi/2) > b2_pi/3
@@ -128,8 +128,8 @@ class Environment:
             self.resultRecord['MaxX'].append(agentsSorted[0].maxX)
             self.resultRecord['CumulativeReward'].append(agentsSorted[0].cumReward)
             self.resultRecord['TimeAlive'].append(agentsSorted[0].timeAlive)
-            if self.episode % 10 == 9:
-                pd.DataFrame(self.resultRecord, columns=['Episode', 'MaxX', 'CumulativeReward', 'TimeAlive']).to_csv('records.csv', index=False)
+            #if self.episode % 10 == 9:
+            #    pd.DataFrame(self.resultRecord, columns=['Episode', 'MaxX', 'CumulativeReward', 'TimeAlive']).to_csv('records.csv', index=False)
 
     def render(self) -> bool:
         return Display.clearDrawDisplay(self)

@@ -29,6 +29,14 @@ class OUActionNoise(object):
         return 'OrnsteinUhlenbeckActionNoise(mu={}, sigma={})'.format(
             self.mu, self.sigma)
 
+class GaussianNoise(object):
+    def __init__(self, mu, sigma=0.15):
+        self.mu = mu
+        self.sigma = sigma #represents standard deviation
+    
+    def __call__(self):
+        return np.random.normal(scale=self.sigma, size=self.mu.shape)
+
 
 class ReplayBuffer(object):
     def __init__(self, max_size, input_shape, n_actions):
@@ -225,24 +233,25 @@ class Critic(object):
 class DDPGAgent(object):
     def __init__(self, alpha, beta, input_dims, tau, gamma=0.99, n_actions=2,
                  max_size=1000000, layer1_size=400, layer2_size=300,
-                 batch_size=64):
+                 batch_size=64, gauss=False):
         self.gamma = gamma
         self.tau = tau
         self.memory = ReplayBuffer(max_size, input_dims, n_actions)
         self.batch_size = batch_size
         self.sess = tf.compat.v1.Session()
-        self.actor = Actor(alpha, n_actions, 'Actor', input_dims, self.sess,
-                           layer1_size, layer2_size)
-        self.critic = Critic(beta, n_actions, 'Critic', input_dims, self.sess,
-                             layer1_size, layer2_size)
+        self.actor = Actor(alpha, n_actions, 'Actor'+str(np.random.randint(0, 10000)),
+                           input_dims, self.sess, layer1_size, layer2_size)
+        self.critic = Critic(beta, n_actions, 'Critic'+str(np.random.randint(0, 10000)),
+                            input_dims, self.sess, layer1_size, layer2_size)
 
-        self.target_actor = Actor(alpha, n_actions, 'TargetActor',
-                                  input_dims, self.sess, layer1_size,
-                                  layer2_size)
-        self.target_critic = Critic(beta, n_actions, 'TargetCritic', input_dims,
-                                    self.sess, layer1_size, layer2_size)
-
-        self.noise = OUActionNoise(mu=np.zeros(n_actions))
+        self.target_actor = Actor(alpha, n_actions, 'TargetActor'+str(np.random.randint(0, 10000)),
+                                  input_dims, self.sess, layer1_size, layer2_size)
+        self.target_critic = Critic(beta, n_actions, 'TargetCritic'+str(np.random.randint(0, 10000)),
+                                    input_dims, self.sess, layer1_size, layer2_size)
+        if gauss:
+            self.noise = GaussianNoise(mu=np.zeros(n_actions))
+        else:
+            self.noise = OUActionNoise(mu=np.zeros(n_actions))
 
         # define ops here in __init__ otherwise time to execute the op
         # increases with each execution.
@@ -319,10 +328,13 @@ class DDPGAgent(object):
 
 
 class DDPG:
-    def __init__(self, loadLastCheckpoint=False):
+    def __init__(self, loadLastCheckpoint=False, useGaussianNoise=False, lateTraining=False):
+        self.counter = 0
+        self.lateTraining = lateTraining
         self.agentsNum = 1  # for main's api
         self.ddpgAgent = DDPGAgent(alpha=0.00005, beta=0.0005, input_dims=[30], tau=0.001,
-                                   batch_size=64, layer1_size=800, layer2_size=600, n_actions=6)
+                                   batch_size=64, layer1_size=800, layer2_size=600,
+                                   n_actions=6, gauss=useGaussianNoise)
         if loadLastCheckpoint:
             self.ddpgAgent.load_models()
 
@@ -339,4 +351,12 @@ class DDPG:
     def train(self, statesArr: (List[List[float]], List[bool]), newStates: (List[List[float]], List[bool]),
               rawActions: (int, np.ndarray), rewardsArr: List[float], cumRewards: List[float], done: bool):
         self.ddpgAgent.remember(statesArr[0][0], rawActions, rewardsArr[0], newStates[0][0], done)
-        self.ddpgAgent.learn()
+        if self.lateTraining:
+            if done:
+                for _ in range(self.counter):
+                    self.ddpgAgent.learn()
+                self.counter = 0
+            else:
+                self.counter += 1
+        else:
+            self.ddpgAgent.learn()
