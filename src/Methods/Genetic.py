@@ -97,7 +97,7 @@ class Genetic:
             return False
         bestIdx = idxSorted[0]
         secondIdx = idxSorted[1]
-        rRatio = (cumRewards[secondIdx] / cumRewards[bestIdx] / 2) if cumRewards[secondIdx] > 0 else 0
+        rRatio = (cumRewards[secondIdx] / cumRewards[bestIdx] / 2) if cumRewards[secondIdx] > 0 and cumRewards[bestIdx] != 0 else 0
         targetActions = self.targetActions[bestIdx] * (1 - rRatio) + self.targetActions[secondIdx] * rRatio
 
         tau = self.initMutation

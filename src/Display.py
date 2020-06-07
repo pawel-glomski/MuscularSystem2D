@@ -35,7 +35,7 @@ display = 1
 clock = pygame.time.Clock()
 
 
-def clearDrawDisplay(env):
+def clearDrawDisplay(env, fps):
     global screen
     global display
     global screenOffset
@@ -54,7 +54,7 @@ def clearDrawDisplay(env):
                 env.episodeTime = (event.key - pygame.K_1 + 1) ** 2
                 print("Episode time = ", env.episodeTime)
     env.helperEdge1.position.x = (int((env.bodies[0].getRootPos().x + 1) / 5) + 1) * 5
-    clock.tick(999999)
+    clock.tick(fps if display != 0 else 99999999)
     pygame.display.set_caption('Muscular System 2D, alive = %d, fps = %.2f' % (len([0 for a in env.bodies if a.active]), clock.get_fps()))
     if display != 0:
         screen.fill((0, 0, 0, 0))

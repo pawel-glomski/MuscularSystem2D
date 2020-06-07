@@ -20,7 +20,7 @@ class Environment:
                              'MaxX': [],
                              'CumulativeReward': [],
                              'TimeAlive': []}
-        self.MinHeight = 0.85
+        self.MinHeight = 0.75
         self._makeWorld()
         self.bodies = [Body(self.world) for i in range(0, bodiesNum)]
 
@@ -129,5 +129,5 @@ class Environment:
             if self.episode % 10 == 9:
                 pd.DataFrame(self.resultRecord, columns=['Episode', 'MaxX', 'CumulativeReward', 'TimeAlive']).to_csv('records.csv', index=False)
 
-    def render(self) -> bool:
-        return Display.clearDrawDisplay(self)
+    def render(self, fps=9999999) -> bool:
+        return Display.clearDrawDisplay(self, fps)
