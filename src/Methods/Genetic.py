@@ -48,21 +48,20 @@ class Genetic:
         print("!!!!!!!!!!!!!!!!!!!!! ", episode, "Saving, reward: %.2f" % cumReward, " !!!!!!!!!!!!!!!!!!!!!")
         self.mainModel.save('drive/My Drive/models/GenEp%d' % episode)
 
-    def predict(self, statesArr: (List[List[float]], List[bool])) -> List[List[float]]:
+    def predict(self, statesArr) -> List[List[float]]:
         return [self.mainModel.predict(statesArr[0])[0]]
         # return [[0] * 6 if active else None for model, state, active in zip(self.trainingModels, statesArr[0], statesArr[1])]
 
     def toEnvActions(self, rawAction):  # to match main's api
         return rawAction
 
-    def train(self, statesArr: (List[List[float]], List[Body]), newStates: (List[List[float]], List[bool]),
-              rawActions: List[List[float]], rewardsArr: List[float], cumRewards: List[float], done: bool):
+    def train(self, statesArr, newStates, rawActions, rewardsArr, cumRewards, done):
         body: Body = statesArr[1][0]
-        if body.health > 0.85:  # or np.random.random() < body.health * 0.1 health <0,1>, do not save dying states
+        if (body.health > 0.85 and np.random.random() < 1/8) or len(self.pastBuffer) > 0:
             self.pastBuffer.append(body.getRealStates())
-        if len(self.pastBuffer) > 20:
+        if len(self.pastBuffer) >= 16:
             print('\nTraining...', end='\t', flush=True)
-            for past in random.sample(self.pastBuffer, 2):
+            for past in [self.pastBuffer[0], self.pastBuffer[7], self.pastBuffer[15]]:
                 self.mutation = 0  # enable mutation
                 learningStates = []
                 cumRewards = np.zeros(len(self.trainingEnv.bodies))
@@ -86,20 +85,20 @@ class Genetic:
             self.mutation = self.initMutation
             self.targetActions[0] = self.mainModel.predict(states[0]) if states[0] is not None else None
             i = 1
-            # for _ in range(2):
-            for s1 in [-1, 1]:
-                for s2 in [-1, 1]:
-                    for s3 in [-1, 1]:
-                        for s4 in [-1, 1]:
-                            for s5 in [-1, 1]:
-                                for s6 in [-1, 1]:
-                                    self.targetActions[i] = np.reshape(np.random.uniform(0.95, 0.7, 6) * np.array([s1, s2, s3, s4, s5, s6]),
-                                                                       (1, -1))
-                                    i += 1
+            for _ in range(2):
+                for s1 in [-1, 1]:
+                    for s2 in [-1, 1]:
+                        for s3 in [-1, 1]:
+                            for s4 in [-1, 1]:
+                                for s5 in [-1, 1]:
+                                    for s6 in [-1, 1]:
+                                        self.targetActions[i] = np.reshape(np.random.uniform(0.95, 0.0, 6) * np.array([s1, s2, s3, s4, s5, s6]),
+                                                                           (1, -1))
+                                        i += 1
                                     # self.targetActions[i] = np.reshape(np.random.uniform(1, 0.6, 6) *
                                     #                                    np.random.choice([-1, 1], 6, True), (1, -1))
-            for i in range(1+6**2, len(self.targetActions)):
-                self.targetActions[i] = np.reshape(np.random.uniform(-1, 1, 6), (1, -1))
+            # for i in range(len(self.targetActions)):
+            #     self.targetActions[i] = np.reshape(np.random.uniform(-1, 1, 6), (1, -1))
         for i, (targetActions, state) in enumerate(zip(self.targetActions, states)):
             if state is not None:
                 self.currentActions[i] = np.array(self.targetActions[0]) if i == 0 else (
@@ -118,9 +117,9 @@ class Genetic:
         # print()
         targetActions = (self.targetActions[bestIdx] * (1 - rRatio) + self.targetActions[secondIdx] * rRatio) * 0.75
         # print(targetActions)
-        targetActions += sum(np.array(self.targetActions)[idxSorted[:20]])/30 * 0.175
+        targetActions += sum(np.array(self.targetActions)[idxSorted[:30]])/30 * 0.175
         # print(targetActions)
-        targetActions -= sum(np.array(self.targetActions)[idxSorted[-20:]])/30 * 0.075
+        targetActions -= sum(np.array(self.targetActions)[idxSorted[-30:]])/30 * 0.075
         # print(targetActions)
         targetActions = np.clip(targetActions, -1, 1)
 

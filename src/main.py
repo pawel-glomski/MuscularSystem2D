@@ -7,7 +7,7 @@ import numpy as np
 
 def main():
     # np.random.seed(0)
-    method = Genetic(128,
+    method = Genetic(129,
                      #  modelPath='drive/My Drive/models/GenEp701'
                      )
     # method = DQN(
@@ -33,7 +33,7 @@ def main():
                 maxCumReward = cumRewards.max()
             method.train(states, newStates, rawActions, rewards, cumRewards, done)
             states = newStates
-            running = env.render(60)
+            # running = env.render(60)
 
 
 if __name__ == "__main__":

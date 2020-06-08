@@ -43,7 +43,7 @@ class Environment:
             position=(0, 0)
         )
 
-    def step(self, actionsArr: List[List[float]], mainEnv: bool = True) -> ((List[List[float]], List[Body]), List[float], bool):  # states, rewards, done?
+    def step(self, actionsArr, mainEnv: bool = True):  # states, rewards, done?
         if self.time == 0:
             if mainEnv:
                 print("Starting episode %d" % self.episode + "... ", end="", flush=True)
@@ -59,7 +59,7 @@ class Environment:
             self._recordResults(bodiesSorted)
         return (stateArr, rewardArr, done)
 
-    def _tick(self, actionsArr: List[List[float]]):
+    def _tick(self, actionsArr):
         for body, actions in zip(self.bodies, actionsArr):
             if body.active:
                 body.applyActions(actions)
@@ -75,7 +75,7 @@ class Environment:
                 body.bones['torso'].ApplyLinearImpulse(impulse=self.randomImpulse, point=(0.6, 0), wake=True)
         self.randomImpulse *= 0.6
 
-    def _evalStates(self) -> ((List[List[float]], List[Body]), List[float]):  # (state, reward)
+    def _evalStates(self):  # (state, reward)
         rewardArr = [0] * len(self.bodies)
         for i, body in enumerate(self.bodies):
             if body.active:
@@ -106,7 +106,7 @@ class Environment:
     def _getStates(self):
         return ([a.getState() if a.active else None for a in self.bodies], [a for a in self.bodies])
 
-    def reset(self, initState: List[float] = None) -> (List[List[float]], List[Body]):
+    def reset(self, initState=None):
         self.time = 0
         self.episode += 1
         off = b2Vec2(np.random.normal(0, 0.1), 0)  # same for each

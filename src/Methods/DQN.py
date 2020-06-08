@@ -48,7 +48,7 @@ class DQN:
         print("!!!!!!!!!!!!!!!!!!!!! ", episode, "Saving, reward: %.2f" % cumReward, " !!!!!!!!!!!!!!!!!!!!!")
         self.model.save('drive/My Drive/models/DQNEp%d' % episode)
 
-    def predict(self, statesArr: (List[List[float]], List[bool])) -> (int, np.ndarray):
+    def predict(self, statesArr):
         state = statesArr[0][0]
         self.epsilon = max(self.epsilonMin, self.epsilon*self.epsilonDecay)
         if np.random.random() < self.epsilon:
@@ -58,8 +58,7 @@ class DQN:
     def toEnvActions(self, rawAction):
         return [self.actionSpace[rawAction]]  # array, to match env's api
 
-    def train(self, statesArr: (List[List[float]], List[bool]), newStates: (List[List[float]], List[bool]),
-              rawActions: (int, np.ndarray), rewardsArr: List[float], cumRewards: List[float], done: bool):
+    def train(self, statesArr, newStates, rawActions, rewardsArr, cumRewards, done):
         self.remember(statesArr[0][0], rawActions, rewardsArr[0], newStates[0][0], done)
         self.replay()
         self.updateTarget()
