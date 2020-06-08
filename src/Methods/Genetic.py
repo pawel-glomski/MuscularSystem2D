@@ -1,149 +1,65 @@
-from Environment import Environment
-from collections import deque
-from random import sample
+from keras.initializers import RandomUniform
+from keras.models import Sequential
 from typing import List
-from Body import Body
-import tensorflow as tf
 import numpy as np
-import random
+import tensorflow as tf
 import keras
 import os
 
 
 class Genetic:
-    def __init__(self, trainingBodiesNum, modelPath=None):
-        self.bodiesNum = 1
-        self.trainingModels = []
+    def __init__(self, bodiesNum, modelPath=None):
+        self.bodiesNum = bodiesNum
+        self.usedModels = []
+        self.swapModels = []
         if modelPath is not None:
-            self.mainModel = keras.models.load_model(modelPath)
+            baseModel = keras.models.load_model(modelPath, compile=False)
+            self.usedModels.append(baseModel)
+            self.swapModels.append(keras.models.clone_model(baseModel))
+            wbs = baseModel.get_weights()
+            for _ in range(1, bodiesNum):
+                self.usedModels.append(keras.models.clone_model(baseModel))
+                self.swapModels.append(keras.models.clone_model(baseModel))
+                self.usedModels[-1].set_weights(wbs)
+                self.mutate(self.usedModels[-1], 0.05, 1)
         else:
-            self.mainModel = Genetic._makeModel()
-        self.targetModel = Genetic._makeModel(self.mainModel, self.mainModel.get_weights())
-        self.trainingEnv = Environment(trainingBodiesNum, epTime=2)
-        self.pastBuffer = deque(maxlen=1000)
-        self.targetActions = [np.zeros((1, 6))] * trainingBodiesNum
-        self.currentActions = [np.zeros((1, 6))] * trainingBodiesNum
-        self.mutation = 0
-        self.learningStatesSize = 8
-        self.initMutation = np.pi / 7
-        self.mutationStep = (np.pi - 2*self.initMutation) / (self.learningStatesSize - 1)
+            for _ in range(bodiesNum):
+                self.usedModels.append(self._makeModel())
+                self.swapModels.append(self._makeModel())
 
-    @staticmethod
-    def _makeModel(base=None, wbs=None, lr=0.0005):
-        if base is None:
-            model = keras.Sequential()
-            model.add(keras.layers.Dense(600, input_dim=30, activation='relu'))
-            model.add(keras.layers.Dropout(0.2))
-            model.add(keras.layers.Dense(400, activation='relu'))
-            model.add(keras.layers.Dropout(0.1))
-            model.add(keras.layers.Dense(6, activation='tanh'))
-        else:
-            model = keras.models.clone_model(base)
-        if wbs is not None:
-            model.set_weights(wbs)
-        model.compile(loss="mean_squared_error", optimizer=keras.optimizers.Adam(lr=lr))
+    def _makeModel(self):
+        model = Sequential()
+        model.add(keras.layers.Dense(250, input_dim=30, activation='relu', kernel_initializer=keras.initializers.RandomNormal(mean=0, stddev=0.01)))
+        model.add(keras.layers.Dense(200, activation='relu', kernel_initializer=keras.initializers.RandomNormal(mean=0, stddev=0.01)))
+        model.add(keras.layers.Dense(180, activation='relu', kernel_initializer=keras.initializers.RandomNormal(mean=0, stddev=0.01)))
+        model.add(keras.layers.Dense(6, activation='tanh', kernel_initializer=keras.initializers.RandomNormal(mean=0, stddev=0.01)))
         return model
 
     def save(self, idx: int, cumReward: int, episode: int):
         print("!!!!!!!!!!!!!!!!!!!!! ", episode, "Saving, reward: %.2f" % cumReward, " !!!!!!!!!!!!!!!!!!!!!")
-        self.mainModel.save('drive/My Drive/models/GenEp%d' % episode)
+        self.usedModels[idx].save('drive/My Drive/models/GenEp%d' % episode)
 
-    def predict(self, statesArr: (List[List[float]], List[bool])) -> List[List[float]]:
-        return [self.mainModel.predict(statesArr[0])[0]]
-        # return [[0] * 6 if active else None for model, state, active in zip(self.trainingModels, statesArr[0], statesArr[1])]
+    def predict(self, statesArr):
+        return [model.predict(state)[0] if state is not None else None for model, state in zip(self.usedModels, statesArr[0])]
+        # return [[0] * 6 if active else None for model, state, active in zip(self.usedModels, statesArr[0], statesArr[1])]
 
     def toEnvActions(self, rawAction):  # to match main's api
         return rawAction
 
-    def train(self, statesArr: (List[List[float]], List[Body]), newStates: (List[List[float]], List[bool]),
-              rawActions: List[List[float]], rewardsArr: List[float], cumRewards: List[float], done: bool):
-        body: Body = statesArr[1][0]
-        if body.health > 0.85:  # or np.random.random() < body.health * 0.1 health <0,1>, do not save dying states
-            self.pastBuffer.append(body.getRealStates())
-        if len(self.pastBuffer) > 20:
-            print('\nTraining...', end='\t', flush=True)
-            for past in random.sample(self.pastBuffer, 2):
-                self.mutation = 0  # enable mutation
-                learningStates = []
-                cumRewards = np.zeros(len(self.trainingEnv.bodies))
-                done = False
-                states = self.trainingEnv.reset(initState=past)
-                while not done:
-                    self._mutate(states[0])
-                    if len(learningStates) < self.learningStatesSize:
-                        learningStates.append(states[0])
-                    newStates, rewards, done = self.trainingEnv.step([actions[0] for actions in self.currentActions], mainEnv=False)
-                    cumRewards += rewards
-                    states = newStates
-                    self.trainingEnv.render()
-                self.learn(learningStates, cumRewards)
-            self.updateTarget()
-            print('Finished')
-            self.pastBuffer.clear()
+    def train(self, statesArr, newStates, rawActions, rewardsArr, cumRewards, done):
+        if done:
+            sel = self._selection(cumRewards)
+            print("Number of selected parents = %d" % len(sel))
+            self._swapModelsLists()
+            for i, model in enumerate(self.usedModels):
+                Genetic.crossover(model, np.random.choice(sel), np.random.choice(sel))
+                Genetic.mutate(model, np.random.uniform(0.01, 0.1), 1.25)
 
-    def _mutate(self, states) -> bool:  # mutated?
-        if self.mutation == 0:
-            self.mutation = self.initMutation
-            self.targetActions[0] = self.mainModel.predict(states[0]) if states[0] is not None else None
-            i = 1
-            # for _ in range(2):
-            for s1 in [-1, 1]:
-                for s2 in [-1, 1]:
-                    for s3 in [-1, 1]:
-                        for s4 in [-1, 1]:
-                            for s5 in [-1, 1]:
-                                for s6 in [-1, 1]:
-                                    self.targetActions[i] = np.reshape(np.random.uniform(0.95, 0.7, 6) * np.array([s1, s2, s3, s4, s5, s6]),
-                                                                       (1, -1))
-                                    i += 1
-                                    # self.targetActions[i] = np.reshape(np.random.uniform(1, 0.6, 6) *
-                                    #                                    np.random.choice([-1, 1], 6, True), (1, -1))
-            for i in range(1+6**2, len(self.targetActions)):
-                self.targetActions[i] = np.reshape(np.random.uniform(-1, 1, 6), (1, -1))
-        for i, (targetActions, state) in enumerate(zip(self.targetActions, states)):
-            if state is not None:
-                self.currentActions[i] = np.array(self.targetActions[0]) if i == 0 else (
-                    targetActions * np.sin(self.mutation) + self.mainModel.predict(state) * (1 - np.sin(self.mutation)))
-        if self.mutation != -1:
-            self.mutation += self.mutationStep
-            self.mutation = self.mutation if self.mutation <= np.pi - self.initMutation else -1
+    def _swapModelsLists(self):
+        self.usedModels, self.swapModels = self.swapModels, self.usedModels
 
-    def learn(self, learningStates, cumRewards):
-        idxSorted = np.argsort(-cumRewards)  # - to reverse the order to descending
-        if idxSorted[0] == 0:  # do not train if the best one is the current best one
-            return False
-        bestIdx = idxSorted[0]
-        secondIdx = idxSorted[1]
-        rRatio = (cumRewards[secondIdx] / cumRewards[bestIdx] / 2) if cumRewards[secondIdx] > 0 and cumRewards[bestIdx] != 0 else 0
-        # print()
-        targetActions = (self.targetActions[bestIdx] * (1 - rRatio) + self.targetActions[secondIdx] * rRatio) * 0.75
-        # print(targetActions)
-        targetActions += sum(np.array(self.targetActions)[idxSorted[:20]])/30 * 0.175
-        # print(targetActions)
-        targetActions -= sum(np.array(self.targetActions)[idxSorted[-20:]])/30 * 0.075
-        # print(targetActions)
-        targetActions = np.clip(targetActions, -1, 1)
-
-        tau = self.initMutation
-        for states in learningStates:
-            state = states[bestIdx]
-            currentActions = targetActions * np.sin(tau) + self.targetModel.predict(state) * (1-np.sin(tau))
-            self.mainModel.fit(state, currentActions, epochs=1, verbose=0)
-            tau += self.mutationStep
-        return True
-
-    def updateTarget(self):
-        tau = 0.1
-        weights = self.mainModel.get_weights()
-        targetWeights = self.targetModel.get_weights()
-        for i in range(len(targetWeights)):
-            targetWeights[i] = targetWeights[i] * (1 - tau) + weights[i] * tau
-        self.targetModel.set_weights(targetWeights)
-
-    # unused for now, but may be in future
-    @staticmethod
-    def _selection(rewardsArr: List[float]):
-        return [i for i, prob in enumerate(Genetic.popProbs(rewardsArr)) if np.random.rand() <= prob]
+    def _selection(self, rewardsArr: List[float]):
+        return [model for model, prob in zip(self.usedModels, Genetic.popProbs(rewardsArr)) if np.random.rand() <= prob]
 
     @staticmethod
     def popProbs(rewardsArr: List[float]) -> np.ndarray:
@@ -156,3 +72,38 @@ class Genetic:
             total += normalized[idx]
             probs[idx] = total
         return probs
+
+    @staticmethod
+    def crossover(model, base, other):
+        if base is other:
+            if base is not model:
+                model.set_weights(base.get_weights())  # only mutate
+        else:
+            for i in range(len(base.layers)):
+                wb1 = base.layers[i].get_weights()  # weights and biases
+                wb2 = other.layers[i].get_weights()
+                wb1[0] = wb1[0].T
+                wb2[0] = wb2[0].T
+                toSet = np.random.choice(np.arange(len(wb1[1])), int(len(wb1[1]) / 3))
+                wb1[1][toSet] = wb2[1][toSet]
+                wb1[0][toSet, :] = wb2[0][toSet, :]
+                wb1[0] = wb1[0].T
+                # for j in range(len(wb1)):
+                #     wb1[j] += wb2[j]
+                #     wb1[j] /= 2
+                model.layers[i].set_weights(wb1)
+
+    @staticmethod
+    def mutate(model, mutationRate: float, mutationScale: float):
+        rng = np.random.default_rng()
+        for j, layer in enumerate(model.layers):
+            new_weights_for_layer = []
+            for weight_array in layer.get_weights():
+                save_shape = weight_array.shape
+                one_dim_weight = weight_array.reshape(-1)
+                toChange = int(len(one_dim_weight) * mutationRate)
+                change = np.concatenate((np.random.normal(0, 0.1 * mutationScale, toChange),  np.zeros(len(one_dim_weight) - toChange)))
+                rng.shuffle(change)
+                one_dim_weight += change
+                new_weights_for_layer.append(one_dim_weight.reshape(save_shape))
+            model.layers[j].set_weights(new_weights_for_layer)
