@@ -98,7 +98,7 @@ class Environment:
             torques += joint.GetMotorTorque(60) ** 2  # hardcoded fps
         return (
             2*abs(body.bones['torso'].linearVelocity.x) + body.bones['torso'].linearVelocity.x +
-            + 0.1*(body.getRootPos().y > self.MinHeight)
+            + 0.1*(body.getRootPos().y)
             - torques*0.00001
             + 0.1
         )

@@ -38,7 +38,7 @@ class DQN:
 
     def _makeModel(self):
         model = keras.Sequential()
-        model.add(keras.layers.Dense(400, input_dim=30, activation='relu'))
+        model.add(keras.layers.Dense(800, input_dim=30, activation='relu'))
         model.add(keras.layers.Dense(600, activation='relu'))
         model.add(keras.layers.Dense(len(self.actionSpace)))
         model.compile(loss="mean_squared_error", optimizer=keras.optimizers.Adam(lr=0.005))

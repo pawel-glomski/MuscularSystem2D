@@ -25,15 +25,17 @@ class Genetic:
         self.currentActions = [np.zeros((1, 6))] * trainingBodiesNum
         self.mutation = 0
         self.learningStatesSize = 8
-        self.initMutation = 1.0
-        self.mutationDecay = 0.98
+        self.initMutation = np.pi / 7
+        self.mutationStep = (np.pi - 2*self.initMutation) / (self.learningStatesSize - 1)
 
     @staticmethod
-    def _makeModel(base=None, wbs=None, lr=0.005):
+    def _makeModel(base=None, wbs=None, lr=0.0005):
         if base is None:
             model = keras.Sequential()
             model.add(keras.layers.Dense(600, input_dim=30, activation='relu'))
+            model.add(keras.layers.Dropout(0.2))
             model.add(keras.layers.Dense(400, activation='relu'))
+            model.add(keras.layers.Dropout(0.1))
             model.add(keras.layers.Dense(6, activation='tanh'))
         else:
             model = keras.models.clone_model(base)
@@ -56,13 +58,11 @@ class Genetic:
     def train(self, statesArr: (List[List[float]], List[Body]), newStates: (List[List[float]], List[bool]),
               rawActions: List[List[float]], rewardsArr: List[float], cumRewards: List[float], done: bool):
         body: Body = statesArr[1][0]
-        if body.health > 0.95 or np.random.random() < body.health * 0.1:  # health <0,1>, do not save dying states
+        if body.health > 0.85:  # or np.random.random() < body.health * 0.1 health <0,1>, do not save dying states
             self.pastBuffer.append(body.getRealStates())
-        if done and len(self.pastBuffer) > 128:
-            print('Training...', end='\t', flush=True)
-
-            past = random.sample(self.pastBuffer, 1)[0]
-            while True:
+        if len(self.pastBuffer) > 20:
+            print('\nTraining...', end='\t', flush=True)
+            for past in random.sample(self.pastBuffer, 2):
                 self.mutation = 0  # enable mutation
                 learningStates = []
                 cumRewards = np.zeros(len(self.trainingEnv.bodies))
@@ -76,21 +76,37 @@ class Genetic:
                     cumRewards += rewards
                     states = newStates
                     self.trainingEnv.render()
-                if self.learn(learningStates, cumRewards):
-                    break
+                self.learn(learningStates, cumRewards)
+            self.updateTarget()
             print('Finished')
+            self.pastBuffer.clear()
 
     def _mutate(self, states) -> bool:  # mutated?
         if self.mutation == 0:
             self.mutation = self.initMutation
-            self.targetActions[0] = self.mainModel.predict(states[0])
-            for i in range(1, len(self.targetActions)):
-                self.targetActions[i] = np.reshape(np.random.choice([-1, 1], 6, replace=True), (1, -1))
+            self.targetActions[0] = self.mainModel.predict(states[0]) if states[0] is not None else None
+            i = 1
+            # for _ in range(2):
+            for s1 in [-1, 1]:
+                for s2 in [-1, 1]:
+                    for s3 in [-1, 1]:
+                        for s4 in [-1, 1]:
+                            for s5 in [-1, 1]:
+                                for s6 in [-1, 1]:
+                                    self.targetActions[i] = np.reshape(np.random.uniform(0.95, 0.7, 6) * np.array([s1, s2, s3, s4, s5, s6]),
+                                                                       (1, -1))
+                                    i += 1
+                                    # self.targetActions[i] = np.reshape(np.random.uniform(1, 0.6, 6) *
+                                    #                                    np.random.choice([-1, 1], 6, True), (1, -1))
+            for i in range(1+6**2, len(self.targetActions)):
+                self.targetActions[i] = np.reshape(np.random.uniform(-1, 1, 6), (1, -1))
         for i, (targetActions, state) in enumerate(zip(self.targetActions, states)):
             if state is not None:
                 self.currentActions[i] = np.array(self.targetActions[0]) if i == 0 else (
-                    targetActions * self.mutation + self.mainModel.predict(state) * (1 - self.mutation))
-        self.mutation *= self.mutationDecay
+                    targetActions * np.sin(self.mutation) + self.mainModel.predict(state) * (1 - np.sin(self.mutation)))
+        if self.mutation != -1:
+            self.mutation += self.mutationStep
+            self.mutation = self.mutation if self.mutation <= np.pi - self.initMutation else -1
 
     def learn(self, learningStates, cumRewards):
         idxSorted = np.argsort(-cumRewards)  # - to reverse the order to descending
@@ -99,19 +115,25 @@ class Genetic:
         bestIdx = idxSorted[0]
         secondIdx = idxSorted[1]
         rRatio = (cumRewards[secondIdx] / cumRewards[bestIdx] / 2) if cumRewards[secondIdx] > 0 and cumRewards[bestIdx] != 0 else 0
-        targetActions = self.targetActions[bestIdx] * (1 - rRatio) + self.targetActions[secondIdx] * rRatio
+        # print()
+        targetActions = (self.targetActions[bestIdx] * (1 - rRatio) + self.targetActions[secondIdx] * rRatio) * 0.75
+        # print(targetActions)
+        targetActions += sum(np.array(self.targetActions)[idxSorted[:20]])/30 * 0.175
+        # print(targetActions)
+        targetActions -= sum(np.array(self.targetActions)[idxSorted[-20:]])/30 * 0.075
+        # print(targetActions)
+        targetActions = np.clip(targetActions, -1, 1)
 
         tau = self.initMutation
         for states in learningStates:
             state = states[bestIdx]
-            currentActions = targetActions * tau + self.targetModel.predict(state) * (1-tau)
+            currentActions = targetActions * np.sin(tau) + self.targetModel.predict(state) * (1-np.sin(tau))
             self.mainModel.fit(state, currentActions, epochs=1, verbose=0)
-            tau *= self.mutationDecay
-        self.updateTarget()
+            tau += self.mutationStep
         return True
 
     def updateTarget(self):
-        tau = 0.01
+        tau = 0.1
         weights = self.mainModel.get_weights()
         targetWeights = self.targetModel.get_weights()
         for i in range(len(targetWeights)):
