@@ -5,17 +5,12 @@ from collections import deque
 import random
 
 
-def discActions(min: float, max: float, n: int):
-    discLen = (max - min) / n
-    return [min + discLen * i + discLen*0.5 for i in range(n)]
-
-
 class DQN:
     def __init__(self, modelPath=None):
         self.bodiesNum = 1
-        self.hipActionDisc = discActions(-1, 1, 2)
-        self.kneeActionDisc = discActions(-1, 1, 2)
-        self.ankleActionDisc = discActions(-1, 1, 2)
+        self.hipActionDisc = [-1, 1]
+        self.kneeActionDisc = [-1, 1]
+        self.ankleActionDisc = [-1, 1]
         self.actionSpace = []
         for hip1Action in self.hipActionDisc:
             for hip2Action in self.hipActionDisc:

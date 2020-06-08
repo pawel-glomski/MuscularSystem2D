@@ -24,18 +24,17 @@ class Genetic:
         self.targetActions = [np.zeros((1, 6))] * trainingBodiesNum
         self.currentActions = [np.zeros((1, 6))] * trainingBodiesNum
         self.mutation = 0
-        self.learningStatesSize = 8
-        self.initMutation = np.pi / 7
-        self.mutationStep = (np.pi - 2*self.initMutation) / (self.learningStatesSize - 1)
+        self.initMutation = np.pi / 5
+        self.mutationStep = np.pi / 10
 
     @staticmethod
     def _makeModel(base=None, wbs=None, lr=0.0005):
         if base is None:
             model = keras.Sequential()
             model.add(keras.layers.Dense(600, input_dim=30, activation='relu'))
-            model.add(keras.layers.Dropout(0.2))
+            # model.add(keras.layers.Dropout(0.2))
             model.add(keras.layers.Dense(400, activation='relu'))
-            model.add(keras.layers.Dropout(0.1))
+            # model.add(keras.layers.Dropout(0.1))
             model.add(keras.layers.Dense(6, activation='tanh'))
         else:
             model = keras.models.clone_model(base)
@@ -57,7 +56,7 @@ class Genetic:
 
     def train(self, statesArr, newStates, rawActions, rewardsArr, cumRewards, done):
         body: Body = statesArr[1][0]
-        if (body.health > 0.85 and np.random.random() < 1/8) or len(self.pastBuffer) > 0:
+        if body.health > 0.85 or len(self.pastBuffer) > 0:
             self.pastBuffer.append(body.getRealStates())
         if len(self.pastBuffer) >= 16:
             print('\nTraining...', end='\t', flush=True)
@@ -68,13 +67,12 @@ class Genetic:
                 done = False
                 states = self.trainingEnv.reset(initState=past)
                 while not done:
-                    self._mutate(states[0])
-                    if len(learningStates) < self.learningStatesSize:
-                        learningStates.append(states[0])
+                    self._mutate(states)
+                    learningStates.append(states[0])
                     newStates, rewards, done = self.trainingEnv.step([actions[0] for actions in self.currentActions], mainEnv=False)
                     cumRewards += rewards
                     states = newStates
-                    self.trainingEnv.render()
+                    # self.trainingEnv.render()
                 self.learn(learningStates, cumRewards)
             self.updateTarget()
             print('Finished')
@@ -83,29 +81,30 @@ class Genetic:
     def _mutate(self, states) -> bool:  # mutated?
         if self.mutation == 0:
             self.mutation = self.initMutation
-            self.targetActions[0] = self.mainModel.predict(states[0]) if states[0] is not None else None
-            i = 1
-            for _ in range(2):
-                for s1 in [-1, 1]:
-                    for s2 in [-1, 1]:
-                        for s3 in [-1, 1]:
-                            for s4 in [-1, 1]:
-                                for s5 in [-1, 1]:
-                                    for s6 in [-1, 1]:
-                                        self.targetActions[i] = np.reshape(np.random.uniform(0.95, 0.0, 6) * np.array([s1, s2, s3, s4, s5, s6]),
-                                                                           (1, -1))
-                                        i += 1
-                                    # self.targetActions[i] = np.reshape(np.random.uniform(1, 0.6, 6) *
-                                    #                                    np.random.choice([-1, 1], 6, True), (1, -1))
-            # for i in range(len(self.targetActions)):
-            #     self.targetActions[i] = np.reshape(np.random.uniform(-1, 1, 6), (1, -1))
-        for i, (targetActions, state) in enumerate(zip(self.targetActions, states)):
-            if state is not None:
+            self.targetActions[0] = self.targetModel.predict(states[0][0]) if states[1][0].active else None
+            # i = 1
+            # # for _ in range(2):
+            # for s1 in [-1, 1]:
+            #     for s2 in [-1, 1]:
+            #         for s3 in [-1, 1]:
+            #             for s4 in [-1, 1]:
+            #                 for s5 in [-1, 1]:
+            #                     for s6 in [-1, 1]:
+            #                         self.targetActions[i] = np.reshape(np.random.uniform(0.95, 0.7, 6) * np.array([s1, s2, s3, s4, s5, s6]),
+            #                                                            (1, -1))
+            #                         i += 1
+            # self.targetActions[i] = np.reshape(np.random.uniform(1, 0.6, 6) *
+            #                                    np.random.choice([-1, 1], 6, True), (1, -1))
+            for i in range(len(self.targetActions)):
+                self.targetActions[i] = np.reshape(np.random.uniform(-1, 1, 6), (1, -1))
+
+        for i, (targetActions, state) in enumerate(zip(self.targetActions, states[0])):
+            if states[1][i].active:
                 self.currentActions[i] = np.array(self.targetActions[0]) if i == 0 else (
-                    targetActions * np.sin(self.mutation) + self.mainModel.predict(state) * (1 - np.sin(self.mutation)))
-        if self.mutation != -1:
+                    targetActions * np.sin(self.mutation) + self.targetModel.predict(state) * (1 - np.sin(self.mutation)))
+        if self.mutation < np.pi:
             self.mutation += self.mutationStep
-            self.mutation = self.mutation if self.mutation <= np.pi - self.initMutation else -1
+            self.mutation = min(self.mutation, np.pi)
 
     def learn(self, learningStates, cumRewards):
         idxSorted = np.argsort(-cumRewards)  # - to reverse the order to descending
@@ -128,7 +127,9 @@ class Genetic:
             state = states[bestIdx]
             currentActions = targetActions * np.sin(tau) + self.targetModel.predict(state) * (1-np.sin(tau))
             self.mainModel.fit(state, currentActions, epochs=1, verbose=0)
-            tau += self.mutationStep
+            if tau < np.pi:
+                tau += self.mutationStep
+                tau = min(tau, np.pi)
         return True
 
     def updateTarget(self):

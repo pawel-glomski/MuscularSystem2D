@@ -320,7 +320,7 @@ class DDPGAgent(object):
 
 class DDPG:
     def __init__(self, loadLastCheckpoint=False):
-        self.agentsNum = 1  # for main's api
+        self.bodiesNum = 1  # for main's api
         self.ddpgAgent = DDPGAgent(alpha=0.00005, beta=0.0005, input_dims=[30], tau=0.001,
                                    batch_size=64, layer1_size=800, layer2_size=600, n_actions=6)
         if loadLastCheckpoint:

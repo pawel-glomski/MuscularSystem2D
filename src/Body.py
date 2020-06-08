@@ -61,7 +61,7 @@ class Body:
         for bone in self.bones.values():
             world.DestroyBody(bone)
 
-    def addBone(self, world, name, parentName='', size=(1, 0.2), angle=0, pos=(0, 1.25), anchor0=-0.95, anchor1=0.95, parentAnchor=1, thisAnchor=0,
+    def addBone(self, world, name, parentName='', size=(1, 0.2), angle=0, pos=(0, 1.2), anchor0=-0.95, anchor1=0.95, parentAnchor=1, thisAnchor=0,
                 angleLow=0, angleHigh=0, maxTorque=400, color=(255, 255, 255, 255), density=175.0):
         size = (size[0] / 2, size[1] / 2)
         parent = None if parentName == '' else self.bones[parentName]
