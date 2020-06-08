@@ -14,13 +14,12 @@ class Environment:
         self.episodeTime = epTime
         self.time = 0
         self.timestep = 1.0/60
-        self.randomImpulse = b2Vec2(0, 0)
         self.record = recordResults
         self.resultRecord = {'Episode': [],
                              'MaxX': [],
                              'CumulativeReward': [],
                              'TimeAlive': []}
-        self.MinHeight = 0.75
+        self.MinHeight = 0.8
         self._makeWorld()
         self.bodies = [Body(self.world) for i in range(0, bodiesNum)]
 
@@ -43,7 +42,7 @@ class Environment:
             position=(0, 0)
         )
 
-    def step(self, actionsArr: List[List[float]], mainEnv: bool = True) -> ((List[List[float]], List[Body]), List[float], bool):  # states, rewards, done?
+    def step(self, actionsArr, mainEnv: bool = True):  # states, rewards, done?
         if self.time == 0:
             if mainEnv:
                 print("Starting episode %d" % self.episode + "... ", end="", flush=True)
@@ -59,23 +58,14 @@ class Environment:
             self._recordResults(bodiesSorted)
         return (stateArr, rewardArr, done)
 
-    def _tick(self, actionsArr: List[List[float]]):
+    def _tick(self, actionsArr):
         for body, actions in zip(self.bodies, actionsArr):
             if body.active:
                 body.applyActions(actions)
         self.world.Step(self.timestep, 5, 10)
         self.time += self.timestep
 
-        applyImpulse = np.random.random() <= self.timestep*1.5
-        if applyImpulse:
-            self.randomImpulse = b2Vec2(np.random.choice([-1, 1]) * np.random.normal(5, 1), 0)
-        for body, actions in zip(self.bodies, actionsArr):
-            if body.active:
-                body.applyActions(actions)
-                body.bones['torso'].ApplyLinearImpulse(impulse=self.randomImpulse, point=(0.6, 0), wake=True)
-        self.randomImpulse *= 0.6
-
-    def _evalStates(self) -> ((List[List[float]], List[Body]), List[float]):  # (state, reward)
+    def _evalStates(self):  # (state, reward)
         rewardArr = [0] * len(self.bodies)
         for i, body in enumerate(self.bodies):
             if body.active:
@@ -93,26 +83,22 @@ class Environment:
         return (self._getStates(), rewardArr)
 
     def _calcReward(self, body: Body) -> float:
-        torques = 0
-        for joint in body.joints:
-            torques += joint.GetMotorTorque(60) ** 2  # hardcoded fps
-        return (
+        return -100 if not body.active else (
             2*abs(body.bones['torso'].linearVelocity.x) + body.bones['torso'].linearVelocity.x +
-            + 0.1*(body.getRootPos().y)
-            - torques*0.00001
+            + 0.1*(body.getRootPos().y > self.MinHeight)
+            - sum([joint.GetMotorTorque(60) ** 2 for joint in body.joints])*0.00001
             + 0.1
         )
 
     def _getStates(self):
-        return ([a.getState() if a.active else None for a in self.bodies], [a for a in self.bodies])
+        return ([a.getState() for a in self.bodies], [a for a in self.bodies])
 
-    def reset(self, initState: List[float] = None) -> (List[List[float]], List[Body]):
+    def reset(self, initState=None):
         self.time = 0
         self.episode += 1
-        off = b2Vec2(np.random.normal(0, 0.1), 0)  # same for each
         if initState is None:
             for a in self.bodies:
-                a.resetState(off)
+                a.resetState(b2Vec2(0.1, 0))
             for _ in range(4):  # make a few steps to bring joints to valid states (apply constraints)
                 self.world.Step(self.timestep*2, 3, 6)
         else:
