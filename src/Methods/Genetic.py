@@ -13,26 +13,31 @@ class Genetic:
         self.usedModels = []
         self.swapModels = []
         if modelPath is not None:
-            baseModel = keras.models.load_model(modelPath, compile=False)
-            self.usedModels.append(baseModel)
-            self.swapModels.append(keras.models.clone_model(baseModel))
-            wbs = baseModel.get_weights()
-            for _ in range(1, bodiesNum):
-                self.usedModels.append(keras.models.clone_model(baseModel))
-                self.swapModels.append(keras.models.clone_model(baseModel))
+            self.mainModel = keras.models.load_model(modelPath, compile=False)
+            wbs = self.mainModel.get_weights()
+            for _ in range(bodiesNum):
+                self.usedModels.append(Genetic._makeModel(self.mainModel, wbs))
+                self.swapModels.append(Genetic._makeModel(self.mainModel, wbs))
                 self.usedModels[-1].set_weights(wbs)
                 self.mutate(self.usedModels[-1], 0.05, 1)
         else:
+            self.mainModel = Genetic._makeModel()
             for _ in range(bodiesNum):
-                self.usedModels.append(self._makeModel())
-                self.swapModels.append(self._makeModel())
+                self.usedModels.append(Genetic._makeModel(self.mainModel))
+                self.swapModels.append(Genetic._makeModel(self.mainModel))
+                self.mutate(self.usedModels[-1], 0.05, 1)
 
-    def _makeModel(self):
-        model = Sequential()
-        model.add(keras.layers.Dense(250, input_dim=30, activation='relu', kernel_initializer=keras.initializers.RandomNormal(mean=0, stddev=0.01)))
-        model.add(keras.layers.Dense(200, activation='relu', kernel_initializer=keras.initializers.RandomNormal(mean=0, stddev=0.01)))
-        model.add(keras.layers.Dense(180, activation='relu', kernel_initializer=keras.initializers.RandomNormal(mean=0, stddev=0.01)))
-        model.add(keras.layers.Dense(6, activation='tanh', kernel_initializer=keras.initializers.RandomNormal(mean=0, stddev=0.01)))
+    @staticmethod
+    def _makeModel(base=None, wbs=None, lr=0.0005):
+        if base is None:
+            model = keras.Sequential()
+            model.add(keras.layers.Dense(800, input_dim=30, activation='relu'))
+            model.add(keras.layers.Dense(600, activation='relu'))
+            model.add(keras.layers.Dense(6, activation='tanh'))
+        else:
+            model = keras.models.clone_model(base)
+        if wbs is not None:
+            model.set_weights(wbs)
         return model
 
     def save(self, idx: int, cumReward: int, episode: int):
@@ -40,8 +45,7 @@ class Genetic:
         self.usedModels[idx].save('drive/My Drive/models/GenEp%d' % episode)
 
     def predict(self, statesArr):
-        return [model.predict(state)[0] if state is not None else None for model, state in zip(self.usedModels, statesArr[0])]
-        # return [[0] * 6 if active else None for model, state, active in zip(self.usedModels, statesArr[0], statesArr[1])]
+        return [model.predict(state)[0] if body.active else None for model, state, body in zip(self.usedModels, statesArr[0], statesArr[1])]
 
     def toEnvActions(self, rawAction):  # to match main's api
         return rawAction
@@ -53,7 +57,7 @@ class Genetic:
             self._swapModelsLists()
             for i, model in enumerate(self.usedModels):
                 Genetic.crossover(model, np.random.choice(sel), np.random.choice(sel))
-                Genetic.mutate(model, np.random.uniform(0.01, 0.1), 1.25)
+                Genetic.mutate(model, np.random.uniform(0.01, 0.1), 1)
 
     def _swapModelsLists(self):
         self.usedModels, self.swapModels = self.swapModels, self.usedModels
@@ -84,7 +88,7 @@ class Genetic:
                 wb2 = other.layers[i].get_weights()
                 wb1[0] = wb1[0].T
                 wb2[0] = wb2[0].T
-                toSet = np.random.choice(np.arange(len(wb1[1])), int(len(wb1[1]) / 3))
+                toSet = np.random.choice(np.arange(len(wb1[1])), int(len(wb1[1]) / 2))
                 wb1[1][toSet] = wb2[1][toSet]
                 wb1[0][toSet, :] = wb2[0][toSet, :]
                 wb1[0] = wb1[0].T
@@ -102,7 +106,8 @@ class Genetic:
                 save_shape = weight_array.shape
                 one_dim_weight = weight_array.reshape(-1)
                 toChange = int(len(one_dim_weight) * mutationRate)
-                change = np.concatenate((np.random.normal(0, 0.1 * mutationScale, toChange),  np.zeros(len(one_dim_weight) - toChange)))
+                change = np.concatenate((np.random.uniform(-0.175 * mutationScale, 0.175 * mutationScale, toChange),
+                                         np.zeros(len(one_dim_weight) - toChange)))
                 rng.shuffle(change)
                 one_dim_weight += change
                 new_weights_for_layer.append(one_dim_weight.reshape(save_shape))
