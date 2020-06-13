@@ -320,7 +320,7 @@ class DDPGAgent(object):
 
 class DDPG:
     def __init__(self, loadLastCheckpoint=False):
-        self.agentsNum = 1  # for main's api
+        self.bodiesNum = 1  # for main's api
         self.ddpgAgent = DDPGAgent(alpha=0.00005, beta=0.0005, input_dims=[30], tau=0.001,
                                    batch_size=64, layer1_size=800, layer2_size=600, n_actions=6)
         if loadLastCheckpoint:
@@ -330,13 +330,12 @@ class DDPG:
         print("!!!!!!!!!!!!!!!!!!!!! ", episode, "Saving, reward: %.2f" % cumReward, " !!!!!!!!!!!!!!!!!!!!!")
         self.ddpgAgent.save_models()
 
-    def predict(self, statesArr: (List[List[float]], List[bool])) -> List[List[float]]:
+    def predict(self, statesArr):
         return self.ddpgAgent.choose_action(statesArr[0][0])
 
     def toEnvActions(self, rawAction):  # to match main's api
         return [rawAction]
 
-    def train(self, statesArr: (List[List[float]], List[bool]), newStates: (List[List[float]], List[bool]),
-              rawActions: (int, np.ndarray), rewardsArr: List[float], cumRewards: List[float], done: bool):
+    def train(self, statesArr, newStates, rawActions, rewardsArr, cumRewards, done):
         self.ddpgAgent.remember(statesArr[0][0], rawActions, rewardsArr[0], newStates[0][0], done)
         self.ddpgAgent.learn()

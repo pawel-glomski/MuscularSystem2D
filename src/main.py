@@ -7,9 +7,9 @@ import numpy as np
 
 def main():
     # np.random.seed(0)
-    method = Genetic(2, modelPath='drive/My Drive/models/GeneticBestModel')
-    # method = DQN('drive/My Drive/models/bestDQNModel')
-    # method = DDPG(True)
+    # method = Genetic(2, modelPath='drive/My Drive/models/GeneticBestModel')
+    # method = DQN('drive/My Drive/models/DQNBestModel')
+    method = DDPG(True)
 
     env = Environment(method.bodiesNum)
     maxCumReward = -float('inf')
