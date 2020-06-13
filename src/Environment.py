@@ -86,7 +86,7 @@ class Environment:
         return -100 if not body.active else (
             2*abs(body.bones['torso'].linearVelocity.x) + body.bones['torso'].linearVelocity.x +
             + 0.1*(body.getRootPos().y > self.MinHeight)
-            - sum([joint.GetMotorTorque(60) ** 2 for joint in body.joints])*0.00001
+            - sum([joint.GetMotorTorque(1.0/self.timestep) ** 2 for joint in body.joints])*0.00001
             + 0.1
         )
 
@@ -98,7 +98,7 @@ class Environment:
         self.episode += 1
         if initState is None:
             for a in self.bodies:
-                a.resetState(b2Vec2(0.1, 0))
+                a.resetState(self.world, b2Vec2(0.1, 0))
             for _ in range(4):  # make a few steps to bring joints to valid states (apply constraints)
                 self.world.Step(self.timestep*2, 3, 6)
         else:

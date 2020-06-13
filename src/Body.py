@@ -6,11 +6,13 @@ import copy
 import keras
 
 RadToDeg = 180/b2_pi
-StartTransf = {}
 
 
 class Body:
     def __init__(self, world: b2World):
+        self._makeBody(world)
+
+    def _makeBody(self, world: b2World):
         self.joints = []
         self.bones = {}
         self.secondColor = (155, 155, 155, 255)
@@ -26,7 +28,6 @@ class Body:
         self.timeAlive = 0
         self.maxX = 0
         self.health = 1
-        self.resetState()
 
     def getState(self):
         states = []
@@ -68,8 +69,6 @@ class Body:
         # angle = angle if parent is None else parent.angle
         pos = pos if parent is None else (parent.position + Vec2(parent.ms_anchor[parentAnchor][0] + size[0], 0).rotate(angle*RadToDeg))
 
-        StartTransf[name] = (pos, angle)
-
         bone = world.CreateDynamicBody(position=pos,
                                        angle=angle,
                                        allowSleep=False,
@@ -104,21 +103,9 @@ class Body:
         for bone in self.bones.values():
             bone.active = False
 
-    def resetState(self, legsOffset=b2Vec2(0, 0)):
-        self.health = 1
-        self.cumReward = 0
-        self.timeAlive = 0
-        self.active = True
-        self.maxX = -float('inf')
-        for joint in self.joints:
-            joint.motorSpeed = 0
-            joint.maxMotorTorque = 0
-        for name, bone in self.bones.items():
-            bone.position = StartTransf[name][0]
-            bone.angle = StartTransf[name][1]
-            bone.linearVelocity = b2Vec2(0, 0)
-            bone.angularVelocity = 0
-            bone.active = True
+    def resetState(self, world: b2World, legsOffset=b2Vec2(0, 0)):
+        self.destroy(world)
+        self._makeBody(world)
 
         self.bones['thigh1'].position += legsOffset
         self.bones['crus1'].position += 2*legsOffset
@@ -126,31 +113,3 @@ class Body:
         self.bones['thigh2'].position -= legsOffset
         self.bones['crus2'].position -= 2*legsOffset
         self.bones['foot2'].position -= 2*legsOffset
-
-    def getRealStates(self):
-        state = [float(self.health)]
-        for bone in self.bones.values():
-            state.append(b2Vec2(bone.position))
-            state.append(float(bone.angle))
-            state.append(b2Vec2(bone.linearVelocity))
-            state.append(float(bone.angularVelocity))
-        return state
-
-    def resetToState(self, state):
-
-        def postInc():
-            postInc.i += 1
-            return postInc.i - 1
-        postInc.i = 0
-
-        self.health = float(state[postInc()])
-        self.cumReward = 0
-        self.timeAlive = 0
-        self.active = True
-        self.maxX = -float('inf')
-        for bone in self.bones.values():
-            bone.position = b2Vec2(state[postInc()])
-            bone.angle = float(state[postInc()])
-            bone.linearVelocity = b2Vec2(state[postInc()])
-            bone.angularVelocity = float(state[postInc()])
-            bone.active = True

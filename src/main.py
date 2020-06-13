@@ -7,15 +7,9 @@ import numpy as np
 
 def main():
     # np.random.seed(0)
-    method = Genetic(128,
-                     #  modelPath='drive/My Drive/models/GenEp1097'
-                     )
-    # method = DQN(
-    #     # 'drive/My Drive/models/DQNEp1'
-    # )
-    # method = DDPG(
-    #     True
-    # )
+    method = Genetic(2, modelPath='drive/My Drive/models/GeneticBestModel')
+    # method = DQN('drive/My Drive/models/bestDQNModel')
+    # method = DDPG(True)
 
     env = Environment(method.bodiesNum)
     maxCumReward = -float('inf')
@@ -28,12 +22,12 @@ def main():
             rawActions = method.predict(states)
             newStates, rewards, done = env.step(method.toEnvActions(rawActions))
             cumRewards += rewards
-            if done and cumRewards.max() > maxCumReward:
-                method.save(np.argmax(cumRewards), cumRewards.max(), env.episode)
-                maxCumReward = cumRewards.max()
-            method.train(states, newStates, rawActions, rewards, cumRewards, done)
+            # if done and cumRewards.max() > maxCumReward:
+            #     method.save(np.argmax(cumRewards), cumRewards.max(), env.episode)
+            #     maxCumReward = cumRewards.max()
+            # method.train(states, newStates, rawActions, rewards, cumRewards, done)
             states = newStates
-            # running = env.render(60)
+            running = env.render(60)
 
 
 if __name__ == "__main__":
